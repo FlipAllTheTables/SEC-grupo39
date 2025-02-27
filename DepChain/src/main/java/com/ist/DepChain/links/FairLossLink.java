@@ -9,7 +9,9 @@ public class FairLossLink {
     private DatagramSocket socket;
     private byte[] buf = new byte[256];
 
-    public FairLossLink() {}
+    public FairLossLink(int port) throws Exception {
+        socket = new DatagramSocket(port);
+    }
 
     public void send(String m, int port) throws Exception {
         buf = m.getBytes();
