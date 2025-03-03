@@ -3,13 +3,14 @@ package com.ist.DepChain.links;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.net.SocketException;
 
 public class FairLossLink {
     
     private DatagramSocket socket;
     private byte[] buf = new byte[256];
 
-    public FairLossLink(int port) throws Exception {
+    public FairLossLink(int port) throws SocketException {
         socket = new DatagramSocket(port);
     }
 
