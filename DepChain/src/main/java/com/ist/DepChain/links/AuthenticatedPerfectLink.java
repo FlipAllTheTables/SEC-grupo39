@@ -16,5 +16,9 @@ public class AuthenticatedPerfectLink {
     public DatagramPacket deliver() {
         return null;
     }
+
+    public void acknowledge() {
+        stubbornLink.acknowledge();
+    }
     
 }

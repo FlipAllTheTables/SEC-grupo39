@@ -8,7 +8,7 @@ import java.net.SocketException;
 public class FairLossLink {
     
     private DatagramSocket socket;
-    private byte[] buf = new byte[256];
+    private byte[] buf = new byte[1024];
 
     public FairLossLink(int port) throws SocketException {
         socket = new DatagramSocket(port);
