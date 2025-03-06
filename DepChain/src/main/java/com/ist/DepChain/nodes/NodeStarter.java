@@ -11,33 +11,50 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.security.PublicKey;
 
+import java.io.FileInputStream;
+import java.security.Key;
+import java.security.KeyFactory;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.security.spec.X509EncodedKeySpec;
+
 import javax.xml.crypto.Data;
 
 import com.ist.DepChain.links.AuthenticatedPerfectLink;
+import com.ist.DepChain.nodes.Listener;
 
 public class NodeStarter {
 
     private static AuthenticatedPerfectLink apLink;
     private static final int BASE_PORT = 5000;
     private static int id;
+    public static NodeState nodestate;
     
     public static void main( String[] args ) throws Exception {
         if (args.length != 1) {
             System.err.println("Usage: NodeStarter <node_id>");
             return;
         }
-        NodeState nodestate = new NodeState();
+        nodestate = new NodeState();
+
+        generateRSAKeys();
 
         int my_id = Integer.valueOf(args[0]);
         id = my_id;
 
-        // AuthenticatedPerfectLink used to communicate with other nodes
-        apLink = new AuthenticatedPerfectLink(BASE_PORT + id);
+        PrivateKey privKey = (PrivateKey) readRSA("src/main/java/com/ist/DepChain/keys/" + id + "_priv.key", "priv");
 
-        generateRSAKeys();
+        // AuthenticatedPerfectLink used to communicate with other nodes
+        DatagramSocket socket = new DatagramSocket(my_id + BASE_PORT);
+        apLink = new AuthenticatedPerfectLink(socket, nodestate, privKey);
+
+        Listener listener = new Listener(apLink, nodestate);
+        Thread thread = new Thread(listener);
+        thread.start();
     }
 
-    public static void generateRSAKeys() throws GeneralSecurityException, IOException {
+    private static void generateRSAKeys() throws GeneralSecurityException, IOException {
         KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA");
         keyGen.initialize(4096);
         KeyPair keys = keyGen.generateKeyPair();
@@ -54,20 +71,23 @@ public class NodeStarter {
 
         try (FileOutputStream pubFos = new FileOutputStream("src/main/java/com/ist/DepChain/keys/" + id + "_pub.key")) {
             pubFos.write(pubKeyEncoded);
-        }
-
-        
+        }        
     }
 
-    /**
-     * Listener class that implements runnable to continuously wait for incoming messages
-     */
-    class Listener implements Runnable {
-
-        public void run() {
-            nodestate.acks.add(id);
+    public static Key readRSA(String keyPath, String type) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
+        byte[] encoded;
+        try (FileInputStream fis = new FileInputStream(keyPath)) {
+            encoded = new byte[fis.available()];
+            fis.read(encoded);
+        }
+        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+        if (type.equals("pub") ){
+            X509EncodedKeySpec keySpec = new X509EncodedKeySpec(encoded);
+            return keyFactory.generatePublic(keySpec);
         }
 
+        PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(encoded);
+        return keyFactory.generatePrivate(keySpec);
     }
 }
 
