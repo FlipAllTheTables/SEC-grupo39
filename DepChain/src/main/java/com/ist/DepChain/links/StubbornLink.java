@@ -19,11 +19,13 @@ public class StubbornLink {
     }
 
     public void send(String m, int port) {
-        int seqNum = nodestate.seqNum++;
+        int seqNum = nodestate.seqNum;
         nodestate.acks.add(seqNum);
         while(nodestate.acks.contains(seqNum)) { //!acknowledged
+            System.out.println(nodestate.acks);
             try {
                 fairLossLink.send(m, port); // add seq to message
+                Thread.sleep(1000);
             } catch (Exception e) {
                 continue;
             }
@@ -33,5 +35,9 @@ public class StubbornLink {
     public DatagramPacket deliver() throws Exception {
         System.out.println("SL: Delivering message");
         return fairLossLink.deliver();
+    }
+
+    public void sendAck(String message, int port) throws Exception {
+        fairLossLink.send(message, port);
     }
 }

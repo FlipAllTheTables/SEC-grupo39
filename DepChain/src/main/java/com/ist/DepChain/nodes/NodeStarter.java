@@ -32,16 +32,17 @@ public class NodeStarter {
     public static NodeState nodestate;
     
     public static void main( String[] args ) throws Exception {
-        if (args.length != 1) {
+        if (args.length != 2) {
             System.err.println("Usage: NodeStarter <node_id>");
             return;
         }
-        nodestate = new NodeState();
-
-        generateRSAKeys();
 
         int my_id = Integer.valueOf(args[0]);
+        int num_nodes = Integer.valueOf(args[1]);
         id = my_id;
+        
+        generateRSAKeys();
+        nodestate = new NodeState(my_id, num_nodes);
 
         PrivateKey privKey = (PrivateKey) readRSA("src/main/java/com/ist/DepChain/keys/" + id + "_priv.key", "priv");
 
@@ -52,9 +53,14 @@ public class NodeStarter {
         Listener listener = new Listener(apLink, nodestate);
         Thread thread = new Thread(listener);
         thread.start();
+
+        CommandListener commandListener = new CommandListener(nodestate, apLink);
+        Thread commandThread = new Thread(commandListener);
+        commandThread.start();
     }
 
     private static void generateRSAKeys() throws GeneralSecurityException, IOException {
+        System.out.println("Generating RSA keys for node " + id);
         KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA");
         keyGen.initialize(4096);
         KeyPair keys = keyGen.generateKeyPair();

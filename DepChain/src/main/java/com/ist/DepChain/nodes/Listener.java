@@ -10,6 +10,7 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
 
         private AuthenticatedPerfectLink apLink;
         public NodeState nodestate;
+        private static final int BASE_PORT = 5000;
 
         public Listener(AuthenticatedPerfectLink apLink, NodeState nodeState) {
             this.apLink = apLink;
@@ -22,6 +23,7 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
                 try {
                     DatagramPacket dp = apLink.deliver();
                     messageHandler(dp);
+                    Thread.sleep(1000);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -31,16 +33,22 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
         public void messageHandler(DatagramPacket dp) {
             String message = new String(dp.getData(), 0, dp.getLength());
             
-            String command = message.split("|",2)[0];
-            String senderId = message.split("|",4)[1];
+            String command = message.split("\\|",5)[0];
+            String senderId = message.split("\\|",5)[1];
+            String seqNum = message.split("\\|",5)[2];
             switch(command) {
                 case "ACK": 
                     System.out.println("Received ack from " + senderId);
-                    String seqNum = message.split("|",2)[2];
                     if(nodestate.acks.contains(Integer.valueOf(seqNum))){
                         nodestate.acks.remove(Integer.valueOf(seqNum));
                     }
                     break;
+                case "TEST":
+                    try {
+                        apLink.sendAck(Integer.valueOf(seqNum), Integer.valueOf(senderId));
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
                 default:
                     System.out.println("Received message from " + senderId + ": " + message);
                     break;
