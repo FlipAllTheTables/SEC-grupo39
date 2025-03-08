@@ -11,10 +11,12 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
         private AuthenticatedPerfectLink apLink;
         public NodeState nodestate;
         private static final int BASE_PORT = 5000;
+        private BizantineConsensus bizantineConsensus;
 
-        public Listener(AuthenticatedPerfectLink apLink, NodeState nodeState) {
+        public Listener(AuthenticatedPerfectLink apLink, NodeState nodeState, BizantineConsensus bizantineConsensus) {
             this.apLink = apLink;
             this.nodestate = nodeState;
+            this.bizantineConsensus = bizantineConsensus;
         }
 
         public void run() {
@@ -49,6 +51,34 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
+                case "INNIT":
+                    if(nodestate.myId == 0){
+                        System.out.println("Received message from " + senderId + ": " + message);
+                        try {
+                            apLink.sendAck(Integer.valueOf(seqNum), BASE_PORT + Integer.valueOf(senderId));
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                        bizantineConsensus.read();
+                    }
+                    break;
+                case "READ":
+                    System.out.println("Received message from " + senderId + ": " + message);
+                    try {
+                        apLink.sendAck(Integer.valueOf(seqNum), BASE_PORT + Integer.valueOf(senderId));
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                    bizantineConsensus.state(Integer.valueOf(senderId));
+                    break;
+                case "STATE":
+                    System.out.println("Received message from " + senderId + ": " + message);
+                    try {
+                        apLink.sendAck(Integer.valueOf(seqNum), BASE_PORT + Integer.valueOf(senderId));
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                    break;
                 default:
                     System.out.println("Received message from " + senderId + ": " + message);
                     break;

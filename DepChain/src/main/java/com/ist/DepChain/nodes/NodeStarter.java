@@ -50,7 +50,9 @@ public class NodeStarter {
         DatagramSocket socket = new DatagramSocket(my_id + BASE_PORT);
         apLink = new AuthenticatedPerfectLink(socket, nodestate, privKey);
 
-        Listener listener = new Listener(apLink, nodestate);
+        BizantineConsensus bizantineConsensus = new BizantineConsensus(nodestate, apLink);
+
+        Listener listener = new Listener(apLink, nodestate, bizantineConsensus);
         Thread thread = new Thread(listener);
         thread.start();
 

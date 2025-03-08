@@ -53,6 +53,11 @@ public class CommandListener implements Runnable {
                 apLink.send(message, BASE_PORT + 1);
                 break;
 
+            case "APPEND":
+                if(nodestate.myId != 0){
+                    String innit = "INNIT|" + nodestate.myId + "|" + nodestate.seqNum + "|" + arg;
+                    apLink.send(innit, BASE_PORT);
+                }
             case "STATUS":
                 System.out.println("Node State: " + nodestate);
                 break;

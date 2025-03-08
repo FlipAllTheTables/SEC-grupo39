@@ -21,6 +21,8 @@ public class StubbornLink {
     public void send(String m, int port) {
         int seqNum = nodestate.seqNum;
         nodestate.acks.add(seqNum);
+        nodestate.seqNum++;
+    
         while(nodestate.acks.contains(seqNum)) { //!acknowledged
             System.out.println(nodestate.acks);
             try {
