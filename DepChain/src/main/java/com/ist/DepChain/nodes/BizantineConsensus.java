@@ -12,7 +12,7 @@ public class BizantineConsensus {
     private static final int BASE_PORT = 5000;
     private List<List<Integer>> storedValts;
     private List<List<String>> storedVal;
-    private List<List<Pair>> storedConsensusPairs;
+    private List<List<List<Pair>>> storedConsensusPairs;
 
     public BizantineConsensus(NodeState nodeState, AuthenticatedPerfectLink apLink) {
         this.nodestate = nodeState;
@@ -73,6 +73,25 @@ public class BizantineConsensus {
             int ts = Integer.parseInt(pairParts[0].trim());
             String pairVal = pairParts[1].trim();
             parsedPairs.add(new Pair(ts, pairVal));
+        }
+
+        if (storedValts.get(consensusIndex) == null){
+            storedValts.add(consensusIndex, new ArrayList<>());
+        }
+        storedValts.get(consensusIndex).add(Integer.parseInt(valts));
+
+        if (storedVal.get(consensusIndex) == null){
+            storedVal.add(consensusIndex, new ArrayList<>());
+        }
+        storedVal.get(consensusIndex).add(val);
+
+        if (storedConsensusPairs.get(consensusIndex) == null){
+            storedConsensusPairs.add(consensusIndex, new ArrayList<>());
+        }
+        storedConsensusPairs.get(consensusIndex).add(parsedPairs);
+
+        if (storedValts.get(consensusIndex).size() == nodestate.numNodes - 1){
+            //Bizantine consensus as been reached
         }
     }
 }
