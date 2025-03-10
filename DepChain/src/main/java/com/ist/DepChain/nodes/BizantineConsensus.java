@@ -10,16 +10,12 @@ public class BizantineConsensus {
     private NodeState nodestate;
     private AuthenticatedPerfectLink apLink;
     private static final int BASE_PORT = 5000;
-    private List<List<Integer>> storedValts;
-    private List<List<String>> storedVal;
-    private List<List<List<Pair>>> storedConsensusPairs;
+    private List<List<String>> storedMessages;
 
     public BizantineConsensus(NodeState nodeState, AuthenticatedPerfectLink apLink) {
         this.nodestate = nodeState;
         this.apLink = apLink;
-        storedConsensusPairs = new ArrayList<>();
-        storedValts = new ArrayList<>();
-        storedVal = new ArrayList<>();
+        storedMessages = new ArrayList<>();
     }
 
     public void read() {
@@ -48,50 +44,33 @@ public class BizantineConsensus {
     }
 
     public void analyseState(String message, int consensusIndex){
-        String content = message.substring(1, message.length() - 1);
+        if (storedMessages.get(consensusIndex) == null) {
+            storedMessages.set(consensusIndex, new ArrayList<>());
+        }
+        storedMessages.get(consensusIndex).add(message);
 
-        // Split the string by commas, limit to 3 parts to handle the list of pairs correctly
-        String[] parts = content.split(",", 3);
+        if (storedMessages.get(consensusIndex).size() == nodestate.quorumSize) {
+            broadcastCollected(storedMessages.get(consensusIndex));
+        }
+    }
 
-        // Extract valts, val, and the list of pairs
-        String valts = parts[0].trim();
-        String val = parts[1].trim();
-        String pairsList = parts[2].trim();
+    private void broadcastCollected(List<String> messages){
+        StringBuilder contentBuilder = new StringBuilder("COLLECTED|" + nodestate.myId + "|" + nodestate.seqNum + "|");
+        for (int i = 0; i < messages.size(); i++) {
+            contentBuilder.append("<").append(messages.get(i)).append(">");
+        }
+        final String content = contentBuilder.toString(); // Make content final
 
-        // Remove the square brackets and split the pairs
-        pairsList = pairsList.substring(1, pairsList.length() - 1);
-        String[] pairs = pairsList.split("\\}, \\{");
-
-        // List to store the parsed pairs
-        List<Pair> parsedPairs = new ArrayList<>();
-
-        // Parse each pair
-        for (String pair : pairs) {
-            // Remove any remaining curly braces
-            pair = pair.replace("{", "").replace("}", "").trim();
-            String[] pairParts = pair.split(",");
-            int ts = Integer.parseInt(pairParts[0].trim());
-            String pairVal = pairParts[1].trim();
-            parsedPairs.add(new Pair(ts, pairVal));
+        for (int i = 1; i < nodestate.numNodes; i++) {
+            final int port = BASE_PORT + i;
+            new Thread(() -> {
+                try {
+                    apLink.send(content, port);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }).start();
         }
 
-        if (storedValts.get(consensusIndex) == null){
-            storedValts.add(consensusIndex, new ArrayList<>());
-        }
-        storedValts.get(consensusIndex).add(Integer.parseInt(valts));
-
-        if (storedVal.get(consensusIndex) == null){
-            storedVal.add(consensusIndex, new ArrayList<>());
-        }
-        storedVal.get(consensusIndex).add(val);
-
-        if (storedConsensusPairs.get(consensusIndex) == null){
-            storedConsensusPairs.add(consensusIndex, new ArrayList<>());
-        }
-        storedConsensusPairs.get(consensusIndex).add(parsedPairs);
-
-        if (storedValts.get(consensusIndex).size() == nodestate.numNodes - 1){
-            //Bizantine consensus as been reached
-        }
     }
 }

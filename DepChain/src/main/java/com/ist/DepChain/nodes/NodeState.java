@@ -12,6 +12,8 @@ public class NodeState {
     public List<Integer> valts;
     public List<String> val;
     public List<Pair> consensusPairs;
+    public int quorumSize;
+    public int bizantineProcesses;
 
     public NodeState(int myId, int numNodes) {
         acks = new ArrayList<>();
@@ -21,6 +23,8 @@ public class NodeState {
         valts = new ArrayList<>();
         val = new ArrayList<>();
         consensusPairs = new ArrayList<>();
+        bizantineProcesses = numNodes / 3;
+        quorumSize = numNodes - bizantineProcesses;
     }
 
     public void addConsensusPair(int value1, String value2) {
