@@ -32,7 +32,7 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
             }
         }
 
-        public void messageHandler(DatagramPacket dp) {
+        public void messageHandler(DatagramPacket dp) throws Exception {
             String message = new String(dp.getData(), 0, dp.getLength());
             
             String command = message.split("\\|",6)[0];
@@ -97,8 +97,29 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
+                    int consensusIndex = Integer.valueOf(message.split("\\|",6)[5]);
+                    bizantineConsensus.readCollected(message, consensusIndex); 
                     break;
 
+                case "WRITE":
+                    System.out.println("Received message from " + senderId + ": " + message);
+                    try {
+                        apLink.sendAck(Integer.valueOf(seqNum), BASE_PORT + Integer.valueOf(senderId));
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                    bizantineConsensus.countWrites(message);
+                    break;
+
+                case "ACCEPT":
+                    System.out.println("Received message from " + senderId + ": " + message);
+                    try {
+                        apLink.sendAck(Integer.valueOf(seqNum), BASE_PORT + Integer.valueOf(senderId));
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                    bizantineConsensus.;
+                    break;
                 default:
                     System.out.println("Received message from " + senderId + ": " + message);
                     break;

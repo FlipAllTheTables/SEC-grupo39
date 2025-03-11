@@ -13,7 +13,7 @@ public class NodeState {
     public List<String> val;
     public List<Pair> consensusPairs;
     public int quorumSize;
-    public int bizantineProcesses;
+    public int bizantineProcesses; 
 
     public NodeState(int myId, int numNodes) {
         acks = new ArrayList<>();
