@@ -70,7 +70,6 @@ public class BizantineConsensus {
         storedMessages.get(consensusIndex).add(message);
 
         if (storedMessages.get(consensusIndex).size() == nodestate.quorumSize) {
-            System.out.println("Collected Messages: " + storedMessages.get(consensusIndex));
             broadcastCollected(storedMessages.get(consensusIndex));
         }
     }
@@ -133,30 +132,34 @@ public class BizantineConsensus {
             }
         }
 
-        List<String> states = new ArrayList<>();
+        Map<Integer, String> states = new HashMap<>();
         // Process the messages
         for (String msg : messagesList) {
             // Split the message using the '|' delimiter
-            String[] msgArray = msg.split("\\|", 6);
+            String[] msgArray = msg.split("\\$", 6);
             int senderId = Integer.parseInt(msgArray[1]);
 
-            states.add(senderId, msgArray[4]);
+            states.put(senderId, msgArray[4]);
         }
-        System.out.println("States: " + states);
         decideWrite(states, consensusIndex);
 
     }
 
-    private void decideWrite(List<String> states, int consensusIndex) {
+    private void decideWrite(Map<Integer, String> states, int consensusIndex) {
         int highestTimestamp = 0;
         String highestValue = "";
         int quorumCount = 0;
         boolean decided = false;
 
         // Process the states
-        for (String state : states) {
+        for (Map.Entry<Integer, String> entry : states.entrySet()) {
+            String state = entry.getValue();
+            String cleanState = state.replace("<", "").replace(">", "");
+            System.out.println("State: " + cleanState);
+
             // Split the state using the ',' delimiter
-            String[] stateArray = state.split(",", 3);
+            String[] stateArray = cleanState.split(",", 3);
+            System.out.println("StateArray: " + stateArray.toString());
             int timestamp = Integer.parseInt(stateArray[0]);
             String value = stateArray[1];
 
@@ -166,12 +169,14 @@ public class BizantineConsensus {
             }
         }
 
-        for (String state: states){
-            String[] stateArray = state.split(",", 3);
+        for (Map.Entry<Integer, String> entry : states.entrySet()) {
+            String state = entry.getValue();
+            String cleanState = state.replace("<", "").replace(">", "");
+            String[] stateArray = cleanState.split(",", 3);
 
-            if(stateArray[2].contains(highestTimestamp + "," + highestValue)){
+            if (stateArray[2].contains(highestTimestamp + "," + highestValue)) {
                 quorumCount++; 
-                if (quorumCount == nodestate.bizantineProcesses + 1){
+                if (quorumCount == nodestate.bizantineProcesses + 1) {
                     decided = true;
                     writeValue(highestTimestamp, highestValue, consensusIndex);
                     break;
@@ -179,9 +184,10 @@ public class BizantineConsensus {
             }
         }
 
-        if (!decided){
+        if (!decided) {
             String leaderState = states.get(0);
-            String[] leaderStateArray = leaderState.split(",", 3);
+            String cleanLeaderState = leaderState.replace("<", "").replace(">", "");
+            String[] leaderStateArray = cleanLeaderState.split(",", 3);
             writeValue(Integer.parseInt(leaderStateArray[0]), leaderStateArray[1], consensusIndex);
         }
     }
@@ -227,7 +233,7 @@ public class BizantineConsensus {
             if (i == nodestate.myId){
                 continue;
             }
-            String content = "ACCEPT|" + nodestate.myId + "|" + nodestate.seqNum + "|" + consensusIndex + "|" + value;
+            String content = "ACCEPT|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + consensusIndex + "|" + value;
             final int port = BASE_PORT + i;
             new Thread(() -> {
                 try {
@@ -258,17 +264,20 @@ public class BizantineConsensus {
     }
 
     private boolean verifyAuth(String message) throws Exception{
+        String[] splitMsg = message.split("\\$", 6);
         String sender = message.split("\\$", 6)[1];
         System.out.println("Sender: " + sender);
         String content = message.split("\\$", 6)[4];
         String signature = message.split("\\$", 6)[5];
         System.out.println("Signature: " + signature);
+        StringBuilder checkSig = new StringBuilder(splitMsg[0] + "$" + splitMsg[1] + "$" + splitMsg[2] + "$" + splitMsg[3] + "$" + splitMsg[4]);
+        System.out.println("CheckSig: " + checkSig);
 
         Signature signMaker = Signature.getInstance(signAlgo);
         PublicKey pubKey = readPublicKey("src/main/java/com/ist/DepChain/keys/" + sender + "_pub.key");
         System.out.println("src/main/java/com/ist/DepChain/keys/" + sender + "_pub.key");
         signMaker.initVerify(pubKey);
-        signMaker.update(content.getBytes());
+        signMaker.update(checkSig.toString().getBytes());
 
         return signMaker.verify(Base64.getDecoder().decode(signature.getBytes()));
     }
