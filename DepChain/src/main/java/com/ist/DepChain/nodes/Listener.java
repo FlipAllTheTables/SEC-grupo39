@@ -23,12 +23,19 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
             System.out.println("Started listening for messages");
             while (true) {
                 try {
+                    System.out.println("Waiting for message...");
                     DatagramPacket dp = apLink.deliver();
                     if (dp == null){
                         System.out.println("Signature didnt match content");
                     }
                     else{
-                        messageHandler(dp);
+                        new Thread(() -> {
+                            try {
+                                messageHandler(dp);
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                        }).start();
                     }
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -45,7 +52,7 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
 
             switch(command) {
                 case "ACK": 
-                    System.out.println("Received ack from " + senderId);
+                    System.out.println("Received ack from " + senderId +  " with sequence number: " + seqNum);
                     if(nodestate.acks.contains(Integer.valueOf(seqNum))){
                         nodestate.acks.remove(Integer.valueOf(seqNum));
                     }
@@ -69,6 +76,9 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
                         } catch (Exception e) {
                             e.printStackTrace();
                         }
+                        String value = message.split("\\|",6)[3];
+                        nodestate.val.add(nodestate.consensusIndex, value);
+                        nodestate.valts.add(nodestate.consensusIndex, 0);
                         bizantineConsensus.read();
                     }
                     break;

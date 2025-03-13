@@ -18,7 +18,7 @@ public class FairLossLink {
     }
 
     public void send(String m, int port) throws Exception {
-        byte[] buf = new byte[1024];
+        byte[] buf = new byte[10000];
         buf = m.getBytes();
         DatagramPacket packet = new DatagramPacket(buf, buf.length, InetAddress.getByName("localhost"), port);
         socket.send(packet);

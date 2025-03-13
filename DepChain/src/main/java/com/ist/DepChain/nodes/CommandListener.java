@@ -49,15 +49,17 @@ public class CommandListener implements Runnable {
         switch (cmd.toUpperCase()) {
             case "TEST":
                 System.out.println("Sending test message: " + arg);
-                String message = "TEST|" + nodestate.myId + "|" + nodestate.seqNum + "|" + arg;
+                String message = "TEST|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + arg;
                 apLink.send(message, BASE_PORT + 1);
                 break;
 
             case "APPEND":
                 if(nodestate.myId != 0){
-                    String innit = "INNIT|" + nodestate.myId + "|" + nodestate.seqNum + "|" + arg;
+                    String innit = "INNIT|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + arg;
                     apLink.send(innit, BASE_PORT);
                 }
+                break;
+                
             default:
                 System.out.println("Unknown command: " + cmd);
                 break;

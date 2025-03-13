@@ -1,5 +1,6 @@
 package com.ist.DepChain.nodes;
 
+import java.security.PrivateKey;
 import java.util.ArrayList;
 import java.util.List;
 import com.ist.DepChain.util.Pair;
@@ -15,6 +16,7 @@ public class NodeState {
     public int quorumSize;
     public int bizantineProcesses; 
     public int consensusIndex;
+    public PrivateKey privateKey;
 
     public NodeState(int myId, int numNodes) {
         acks = new ArrayList<>();
@@ -23,6 +25,10 @@ public class NodeState {
         this.numNodes = numNodes;
         valts = new ArrayList<>();
         val = new ArrayList<>();
+        for (int i = 0; i < 500; i++) {
+            valts.add(0);
+            val.add("");
+        }
         consensusPairs = new ArrayList<>();
         bizantineProcesses = numNodes / 3;
         quorumSize = numNodes - bizantineProcesses - 1;

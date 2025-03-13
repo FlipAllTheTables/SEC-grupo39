@@ -19,17 +19,16 @@ public class StubbornLink {
     }
 
     public void send(String m, int port) {
-        int seqNum = nodestate.seqNum;
-        nodestate.acks.add(seqNum);
-        nodestate.seqNum++;
-
         String[] readableMessage = m.split("\\|");
+        int seqNum = Integer.parseInt(readableMessage[2]);
+        nodestate.acks.add(seqNum);
         StringBuilder buh = new StringBuilder();
         int i = 0;
         for (String mess : readableMessage) {
-            if (i == readableMessage.length - 1) {
+            if (i == readableMessage.length - 2) {
                 break;
             }
+            i++;
             buh.append(mess).append("|");
         }
 
@@ -51,6 +50,7 @@ public class StubbornLink {
     }
 
     public void sendAck(String message, int port) throws Exception {
+        System.out.println("Sending ack to message: " + message + " to port: " + port);
         fairLossLink.send(message, port);
     }
 }

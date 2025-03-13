@@ -39,8 +39,8 @@ public class BizantineConsensus {
     }
 
     public void read() {
-        String query = "READ|" + nodestate.myId + "|" + nodestate.seqNum + "|" + nodestate.consensusIndex + "|";
         for (int i = 1; i < nodestate.numNodes; i++) {
+            String query = "READ|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + nodestate.consensusIndex + "|";
             final int port = BASE_PORT + i;
             new Thread(() -> {
                 try {
@@ -55,8 +55,9 @@ public class BizantineConsensus {
     public void state(String message){
         String consensusIndex = message.split("\\|", 6)[3];
         int senderId = Integer.parseInt(message.split("\\|", 6)[1]);
-        String state = "STATE|" + nodestate.myId + "|" + nodestate.seqNum + "|" + consensusIndex + "|<" + 
-        nodestate.valts + "," + nodestate.val + "," + nodestate.consensusPairs + ">";
+        
+        String state = "STATE|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + consensusIndex + "|<" + 
+        nodestate.valts.get(Integer.parseInt(consensusIndex)) + "," + nodestate.val.get(Integer.parseInt(consensusIndex)) + "," + nodestate.consensusPairs + ">";
 
         try {
             apLink.send(state, BASE_PORT + senderId);
@@ -69,23 +70,30 @@ public class BizantineConsensus {
         storedMessages.get(consensusIndex).add(message);
 
         if (storedMessages.get(consensusIndex).size() == nodestate.quorumSize) {
+            System.out.println("Collected Messages: " + storedMessages.get(consensusIndex));
             broadcastCollected(storedMessages.get(consensusIndex));
         }
     }
 
     private void broadcastCollected(List<String> messages){
-        String consensusIndex = messages.get(0).split("\\|", 6)[3];
-        StringBuilder contentBuilder = new StringBuilder("COLLECTED|" + nodestate.myId + "|" + nodestate.seqNum + "|" + consensusIndex + "|");
-        String state = "STATE$" + nodestate.myId + "$" + nodestate.seqNum + "$" + nodestate.consensusIndex + "$<" +
-        nodestate.valts + "," + nodestate.val + "," + nodestate.consensusPairs;
-        for (int i = 0; i < messages.size(); i++) {
-            contentBuilder.append("<").append(messages.get(i).replaceAll("\\|", "\\$")).append(">");
-        }
-        //Append own state
-        contentBuilder.append("<").append(state).append(">");
-        final String content = contentBuilder.toString();
-
         for (int i = 1; i < nodestate.numNodes; i++) {
+            String consensusIndex = messages.get(0).split("\\|", 6)[3];
+            StringBuilder contentBuilder = new StringBuilder("COLLECTED|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + consensusIndex + "|");
+            String state = "STATE$" + nodestate.myId + "$" + nodestate.seqNum + "$" + nodestate.consensusIndex + "$<" +
+            nodestate.valts.get(Integer.parseInt(consensusIndex)) + "," + nodestate.val.get(Integer.parseInt(consensusIndex)) + "," + nodestate.consensusPairs + ">";
+            try{
+                state += "$" + authenticate(state);
+            }
+            catch (Exception e){
+                e.printStackTrace();
+            }
+            for (int j = 0; j < messages.size(); j++) {
+                contentBuilder.append("<").append(messages.get(j).replaceAll("\\|", "\\$")).append(">");
+            }
+            //Append own state
+            contentBuilder.append("<").append(state).append(">");
+            final String content = contentBuilder.toString();
+
             final int port = BASE_PORT + i;
             new Thread(() -> {
                 try {
@@ -100,8 +108,9 @@ public class BizantineConsensus {
 
     public void readCollected(String message, int consensusIndex) throws Exception {
         // Split the Message section using the '><' delimiter
-        message.replaceAll("\\$", "\\|");
-        String[] messagesArray = message.split("><");
+        String content = message.split("\\|", 6)[4];
+        content.replaceAll("\\$", "\\|");
+        String[] messagesArray = content.split("><");
 
         // List to store the individual messages
         List<String> messagesList = new ArrayList<>();
@@ -118,7 +127,8 @@ public class BizantineConsensus {
                 msg = msg.substring(0, msg.length() - 1);
             }
             // Add the cleaned message to the list
-            if (verifyAuth(message)) {
+            if (verifyAuth(msg)) {
+                System.out.println("Message " + i + " verified");
                 messagesList.add(msg);
             }
         }
@@ -130,8 +140,9 @@ public class BizantineConsensus {
             String[] msgArray = msg.split("\\|", 6);
             int senderId = Integer.parseInt(msgArray[1]);
 
-            states.add(senderId, msgArray[3]);
+            states.add(senderId, msgArray[4]);
         }
+        System.out.println("States: " + states);
         decideWrite(states, consensusIndex);
 
     }
@@ -173,16 +184,14 @@ public class BizantineConsensus {
             String[] leaderStateArray = leaderState.split(",", 3);
             writeValue(Integer.parseInt(leaderStateArray[0]), leaderStateArray[1], consensusIndex);
         }
-
     }
 
     private void writeValue(int timestamp, String value, int consensusIndex){
-        String content = "WRITE|" + nodestate.myId + "|" + nodestate.seqNum + "|" + consensusIndex + "|" + timestamp + "," + value;
-
         for (int i = 0; i < nodestate.numNodes; i++) {
             if (i == nodestate.myId){
                 continue;
             }
+            String content = "WRITE|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + consensusIndex + "|" + timestamp + "," + value;
             final int port = BASE_PORT + i;
             new Thread(() -> {
                 try {
@@ -214,12 +223,11 @@ public class BizantineConsensus {
     }
 
     public void sendAccept (String value, int consensusIndex) {
-        String content = "ACCEPT|" + nodestate.myId + "|" + nodestate.seqNum + "|" + consensusIndex + "|" + value;
-
         for (int i = 0; i < nodestate.numNodes; i++) {
             if (i == nodestate.myId){
                 continue;
             }
+            String content = "ACCEPT|" + nodestate.myId + "|" + nodestate.seqNum + "|" + consensusIndex + "|" + value;
             final int port = BASE_PORT + i;
             new Thread(() -> {
                 try {
@@ -250,17 +258,28 @@ public class BizantineConsensus {
     }
 
     private boolean verifyAuth(String message) throws Exception{
-        String sender = message.split("\\|", 5)[1];
+        String sender = message.split("\\$", 6)[1];
         System.out.println("Sender: " + sender);
-        String content = message.split("\\|", 5)[4];
-        String signature = message.split("\\|", 5)[5];
+        String content = message.split("\\$", 6)[4];
+        String signature = message.split("\\$", 6)[5];
+        System.out.println("Signature: " + signature);
 
         Signature signMaker = Signature.getInstance(signAlgo);
         PublicKey pubKey = readPublicKey("src/main/java/com/ist/DepChain/keys/" + sender + "_pub.key");
+        System.out.println("src/main/java/com/ist/DepChain/keys/" + sender + "_pub.key");
         signMaker.initVerify(pubKey);
         signMaker.update(content.getBytes());
 
         return signMaker.verify(Base64.getDecoder().decode(signature.getBytes()));
+    }
+
+    private String authenticate(String m) throws Exception {
+        System.out.println("Authenticating message: " + m);
+        Signature signMaker = Signature.getInstance(signAlgo);
+        signMaker.initSign(nodestate.privateKey);
+        signMaker.update(m.getBytes());
+        byte[] signature = signMaker.sign();
+        return new String(Base64.getEncoder().encode(signature));
     }
 
     private PublicKey readPublicKey(String filename) throws Exception {

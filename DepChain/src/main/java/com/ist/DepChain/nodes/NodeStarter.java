@@ -45,7 +45,7 @@ public class NodeStarter {
         nodestate = new NodeState(my_id, num_nodes);
 
         PrivateKey privKey = (PrivateKey) readRSA("src/main/java/com/ist/DepChain/keys/" + id + "_priv.key", "priv");
-        System.out.println("Private key: " + "src/main/java/com/ist/DepChain/keys/" + id + "_priv.key");
+        nodestate.privateKey = privKey;
 
         // AuthenticatedPerfectLink used to communicate with other nodes
         DatagramSocket socket = new DatagramSocket(my_id + BASE_PORT);
