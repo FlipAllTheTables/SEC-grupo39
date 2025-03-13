@@ -24,8 +24,12 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
             while (true) {
                 try {
                     DatagramPacket dp = apLink.deliver();
-                    messageHandler(dp);
-                    Thread.sleep(1000);
+                    if (dp == null){
+                        System.out.println("Signature didnt match content");
+                    }
+                    else{
+                        messageHandler(dp);
+                    }
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -38,8 +42,6 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
             String command = message.split("\\|",6)[0];
             String senderId = message.split("\\|",6)[1];
             String seqNum = message.split("\\|",6)[2];
-            String content = message.split("\\|",6)[3];
-            String signature = message.split("\\|",6)[4];
 
             switch(command) {
                 case "ACK": 
@@ -51,6 +53,7 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
 
                 case "TEST":
                     try {
+                        System.out.println("Sending Acknoledge to message: " + seqNum + " from sender: " + senderId);
                         apLink.sendAck(Integer.valueOf(seqNum), Integer.valueOf(senderId));
                     } catch (Exception e) {
                         e.printStackTrace();
@@ -61,7 +64,8 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
                     if(nodestate.myId == 0){
                         System.out.println("Received message from " + senderId + ": " + message);
                         try {
-                            apLink.sendAck(Integer.valueOf(seqNum), BASE_PORT + Integer.valueOf(senderId));
+                            System.out.println("Sending Acknoledge to message: " + seqNum + " from sender: " + senderId);
+                            apLink.sendAck(Integer.valueOf(seqNum), Integer.valueOf(senderId));
                         } catch (Exception e) {
                             e.printStackTrace();
                         }
@@ -72,18 +76,20 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
                 case "READ":
                     System.out.println("Received message from " + senderId + ": " + message);
                     try {
-                        apLink.sendAck(Integer.valueOf(seqNum), BASE_PORT + Integer.valueOf(senderId));
+                        System.out.println("Sending Acknoledge to message: " + seqNum + " from sender: " + senderId);
+                        apLink.sendAck(Integer.valueOf(seqNum), Integer.valueOf(senderId));
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
-                    bizantineConsensus.state(Integer.valueOf(senderId));
+                    bizantineConsensus.state(message);
                     break;
 
                 case "STATE":
                     System.out.println("Received message from " + senderId + ": " + message);
-                    int consensusRun = Integer.valueOf(message.split("\\|",6)[5]);
+                    int consensusRun = Integer.valueOf(message.split("\\|",6)[3]);
                     try {
-                        apLink.sendAck(Integer.valueOf(seqNum), BASE_PORT + Integer.valueOf(senderId));
+                        System.out.println("Sending Acknoledge to message: " + seqNum + " from sender: " + senderId);
+                        apLink.sendAck(Integer.valueOf(seqNum), Integer.valueOf(senderId));
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
@@ -93,18 +99,20 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
                 case "COLLECTED":
                     System.out.println("Received message from " + senderId + ": " + message);
                     try {
-                        apLink.sendAck(Integer.valueOf(seqNum), BASE_PORT + Integer.valueOf(senderId));
+                        System.out.println("Sending Acknoledge to message: " + seqNum + " from sender: " + senderId);
+                        apLink.sendAck(Integer.valueOf(seqNum), Integer.valueOf(senderId));
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
-                    int consensusIndex = Integer.valueOf(message.split("\\|",6)[5]);
+                    int consensusIndex = Integer.valueOf(message.split("\\|",6)[3]);
                     bizantineConsensus.readCollected(message, consensusIndex); 
                     break;
 
                 case "WRITE":
                     System.out.println("Received message from " + senderId + ": " + message);
                     try {
-                        apLink.sendAck(Integer.valueOf(seqNum), BASE_PORT + Integer.valueOf(senderId));
+                        System.out.println("Sending Acknoledge to message: " + seqNum + " from sender: " + senderId);
+                        apLink.sendAck(Integer.valueOf(seqNum), Integer.valueOf(senderId));
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
@@ -114,14 +122,16 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
                 case "ACCEPT":
                     System.out.println("Received message from " + senderId + ": " + message);
                     try {
-                        apLink.sendAck(Integer.valueOf(seqNum), BASE_PORT + Integer.valueOf(senderId));
+                        System.out.println("Sending Acknoledge to message: " + seqNum + " from sender: " + senderId);
+                        apLink.sendAck(Integer.valueOf(seqNum), Integer.valueOf(senderId));
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
-                    bizantineConsensus.;
+                    bizantineConsensus.countAccepts(message);
                     break;
+                    
                 default:
-                    System.out.println("Received message from " + senderId + ": " + message);
+                    System.out.println("No command found");
                     break;
             }
         }

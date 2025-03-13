@@ -31,10 +31,15 @@ public class BizantineConsensus {
         storedMessages = new ArrayList<>();
         countedWrites = new ArrayList<>();
         countedAccepts = new ArrayList<>();
+        for (int i = 0; i < 100; i++) {
+            storedMessages.add(new ArrayList<>());
+            countedWrites.add(new HashMap<>());
+            countedAccepts.add(new HashMap<>());
+        }
     }
 
     public void read() {
-        String query = "READ|" + nodestate.myId + "|" + nodestate.seqNum + "|";
+        String query = "READ|" + nodestate.myId + "|" + nodestate.seqNum + "|" + nodestate.consensusIndex + "|";
         for (int i = 1; i < nodestate.numNodes; i++) {
             final int port = BASE_PORT + i;
             new Thread(() -> {
@@ -47,8 +52,10 @@ public class BizantineConsensus {
         }
     }
 
-    public void state(int senderId){
-        String state = "STATE|" + nodestate.myId + "|" + nodestate.seqNum + "|<" + 
+    public void state(String message){
+        String consensusIndex = message.split("\\|", 6)[3];
+        int senderId = Integer.parseInt(message.split("\\|", 6)[1]);
+        String state = "STATE|" + nodestate.myId + "|" + nodestate.seqNum + "|" + consensusIndex + "|<" + 
         nodestate.valts + "," + nodestate.val + "," + nodestate.consensusPairs + ">";
 
         try {
@@ -59,9 +66,6 @@ public class BizantineConsensus {
     }
 
     public void analyseState(String message, int consensusIndex){
-        if (storedMessages.get(consensusIndex) == null) {
-            storedMessages.set(consensusIndex, new ArrayList<>());
-        }
         storedMessages.get(consensusIndex).add(message);
 
         if (storedMessages.get(consensusIndex).size() == nodestate.quorumSize) {
@@ -70,16 +74,16 @@ public class BizantineConsensus {
     }
 
     private void broadcastCollected(List<String> messages){
-        StringBuilder contentBuilder = new StringBuilder("COLLECTED|" + nodestate.myId + "|" + nodestate.seqNum + "|");
-        String state = "STATE|" + nodestate.myId + "|" + nodestate.seqNum + "|<" +
+        String consensusIndex = messages.get(0).split("\\|", 6)[3];
+        StringBuilder contentBuilder = new StringBuilder("COLLECTED|" + nodestate.myId + "|" + nodestate.seqNum + "|" + consensusIndex + "|");
+        String state = "STATE$" + nodestate.myId + "$" + nodestate.seqNum + "$" + nodestate.consensusIndex + "$<" +
         nodestate.valts + "," + nodestate.val + "," + nodestate.consensusPairs;
         for (int i = 0; i < messages.size(); i++) {
-            contentBuilder.append("<").append(messages.get(i)).append(">");
+            contentBuilder.append("<").append(messages.get(i).replaceAll("\\|", "\\$")).append(">");
         }
         //Append own state
         contentBuilder.append("<").append(state).append(">");
         final String content = contentBuilder.toString();
-        content.replaceAll("|", "$");
 
         for (int i = 1; i < nodestate.numNodes; i++) {
             final int port = BASE_PORT + i;
@@ -96,6 +100,7 @@ public class BizantineConsensus {
 
     public void readCollected(String message, int consensusIndex) throws Exception {
         // Split the Message section using the '><' delimiter
+        message.replaceAll("\\$", "\\|");
         String[] messagesArray = message.split("><");
 
         // List to store the individual messages
@@ -127,11 +132,11 @@ public class BizantineConsensus {
 
             states.add(senderId, msgArray[3]);
         }
-        decideWrite(states);
+        decideWrite(states, consensusIndex);
 
     }
 
-    private void decideWrite(List<String> states) {
+    private void decideWrite(List<String> states, int consensusIndex) {
         int highestTimestamp = 0;
         String highestValue = "";
         int quorumCount = 0;
@@ -157,7 +162,7 @@ public class BizantineConsensus {
                 quorumCount++; 
                 if (quorumCount == nodestate.bizantineProcesses + 1){
                     decided = true;
-                    writeValue(highestTimestamp, highestValue);
+                    writeValue(highestTimestamp, highestValue, consensusIndex);
                     break;
                 }
             }
@@ -166,15 +171,18 @@ public class BizantineConsensus {
         if (!decided){
             String leaderState = states.get(0);
             String[] leaderStateArray = leaderState.split(",", 3);
-            writeValue(Integer.parseInt(leaderStateArray[0]), leaderStateArray[1]);
+            writeValue(Integer.parseInt(leaderStateArray[0]), leaderStateArray[1], consensusIndex);
         }
 
     }
 
-    private void writeValue(int timestamp, String value){
-        String content = "WRITE|" + nodestate.myId + "|" + nodestate.seqNum + "|" + timestamp + "," + value;
+    private void writeValue(int timestamp, String value, int consensusIndex){
+        String content = "WRITE|" + nodestate.myId + "|" + nodestate.seqNum + "|" + consensusIndex + "|" + timestamp + "," + value;
 
-        for (int i = 1; i < nodestate.numNodes; i++) {
+        for (int i = 0; i < nodestate.numNodes; i++) {
+            if (i == nodestate.myId){
+                continue;
+            }
             final int port = BASE_PORT + i;
             new Thread(() -> {
                 try {
@@ -188,10 +196,10 @@ public class BizantineConsensus {
 
     public void countWrites(String message){
         String[] messageArray = message.split("\\|", 6);
-        String[] value = messageArray[3].split(",", 3);
+        String[] value = messageArray[4].split(",", 3);
         int timestamp = Integer.parseInt(value[0]);
         String writeValue = value[1];
-        int consensusIndex = Integer.parseInt(messageArray[5]);
+        int consensusIndex = Integer.parseInt(messageArray[3]);
 
         String key = timestamp + "," + writeValue;
 
@@ -201,14 +209,17 @@ public class BizantineConsensus {
         countedWrites.get(consensusIndex).put(key, countedWrites.get(consensusIndex).getOrDefault(key, 0) + 1);
 
         if (countedWrites.get(consensusIndex).get(key) == nodestate.quorumSize) {
-            sendAccept(writeValue);
+            sendAccept(writeValue, consensusIndex);
         }
     }
 
-    public void sendAccept (String value) {
-        String content = "ACCEPT|" + nodestate.myId + "|" + nodestate.seqNum + "|" + value;
+    public void sendAccept (String value, int consensusIndex) {
+        String content = "ACCEPT|" + nodestate.myId + "|" + nodestate.seqNum + "|" + consensusIndex + "|" + value;
 
-        for (int i = 1; i < nodestate.numNodes; i++) {
+        for (int i = 0; i < nodestate.numNodes; i++) {
+            if (i == nodestate.myId){
+                continue;
+            }
             final int port = BASE_PORT + i;
             new Thread(() -> {
                 try {
@@ -222,10 +233,8 @@ public class BizantineConsensus {
 
     public void countAccepts(String accept) {
         String[] acceptArray = accept.split("\\|", 6);
-        String value = acceptArray[3];
-        
-        int senderId = Integer.parseInt(acceptArray[1]);
-        int consensusIndex = Integer.parseInt(acceptArray[5]);
+        String value = acceptArray[4];
+        int consensusIndex = Integer.parseInt(acceptArray[3]);
 
         if (countedAccepts.get(consensusIndex) == null) {
             countedAccepts.set(consensusIndex, new HashMap<>());
@@ -234,6 +243,7 @@ public class BizantineConsensus {
 
         if (countedAccepts.get(consensusIndex).get(value) == nodestate.quorumSize) {
             nodestate.val.set(consensusIndex, value);
+            nodestate.consensusIndex++;
             System.out.println("Decided on value: " + value);          
         }
 
@@ -242,8 +252,8 @@ public class BizantineConsensus {
     private boolean verifyAuth(String message) throws Exception{
         String sender = message.split("\\|", 5)[1];
         System.out.println("Sender: " + sender);
-        String content = message.split("\\|", 5)[3];
-        String signature = message.split("\\|", 5)[4];
+        String content = message.split("\\|", 5)[4];
+        String signature = message.split("\\|", 5)[5];
 
         Signature signMaker = Signature.getInstance(signAlgo);
         PublicKey pubKey = readPublicKey("src/main/java/com/ist/DepChain/keys/" + sender + "_pub.key");

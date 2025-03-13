@@ -37,18 +37,21 @@ public class AuthenticatedPerfectLink {
     }
 
     public DatagramPacket deliver() throws Exception {
-        System.out.println("APL: Delivering message");
         DatagramPacket dp = stubbornLink.deliver();
         if (verifyAuth(dp) && !delivered.contains(dp)) {
             delivered.add(dp);
+            return dp;
         }
-        return dp;
+        else {
+            return null;
+        }
     }
 
     /**
      * Method that creates a digitial signature of message as a Base64 String
      */
     private String authenticate(String m) throws Exception {
+        System.out.println("Authenticating message: " + m);
         Signature signMaker = Signature.getInstance(signAlgo);
         signMaker.initSign(privKey);
         signMaker.update(m.getBytes());
@@ -62,16 +65,31 @@ public class AuthenticatedPerfectLink {
      */
     private boolean verifyAuth(DatagramPacket dp) throws Exception{
         String packeString = new String(dp.getData(), 0, dp.getLength());
-        System.out.println("Packet: " + packeString);
+        String command = packeString.split("\\|", 5)[0];
         String sender = packeString.split("\\|", 5)[1];
-        System.out.println("Sender: " + sender);
-        String message = packeString.split("\\|", 5)[3];
-        String signature = packeString.split("\\|", 5)[4];
+        String seqNum = packeString.split("\\|", 5)[2];
+        String message;
+        String signature;
+        StringBuilder content = new StringBuilder();
+
+        if (command.equals("APPEND") || command.equals("INNIT") || command.equals("ACK") || command.equals("TEST")) {
+            message = packeString.split("\\|", 5)[3];
+            signature = packeString.split("\\|", 5)[4];
+            content.append(command).append("|").append(sender).append("|")
+            .append(seqNum).append("|").append(message);
+        }
+        else {
+            String consensusRun = packeString.split("\\|", 6)[3];
+            message = packeString.split("\\|", 6)[4];
+            signature = packeString.split("\\|", 6)[5];
+            content.append(command).append("|").append(sender).append("|")
+            .append(seqNum).append("|").append(consensusRun).append("|").append(message);
+        }
 
         Signature signMaker = Signature.getInstance(signAlgo);
         PublicKey pubKey = readPublicKey("src/main/java/com/ist/DepChain/keys/" + sender + "_pub.key");
         signMaker.initVerify(pubKey);
-        signMaker.update(message.getBytes());
+        signMaker.update(content.toString().getBytes());
 
         return signMaker.verify(Base64.getDecoder().decode(signature.getBytes()));
     }
@@ -87,5 +105,4 @@ public class AuthenticatedPerfectLink {
         String signature = authenticate(m);
         stubbornLink.sendAck(m + "|" + signature, BASE_PORT + senderId);
     }
-    
 }

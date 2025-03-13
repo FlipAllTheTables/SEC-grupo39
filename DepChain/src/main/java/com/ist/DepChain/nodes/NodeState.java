@@ -14,6 +14,7 @@ public class NodeState {
     public List<Pair> consensusPairs;
     public int quorumSize;
     public int bizantineProcesses; 
+    public int consensusIndex;
 
     public NodeState(int myId, int numNodes) {
         acks = new ArrayList<>();
@@ -24,7 +25,8 @@ public class NodeState {
         val = new ArrayList<>();
         consensusPairs = new ArrayList<>();
         bizantineProcesses = numNodes / 3;
-        quorumSize = numNodes - bizantineProcesses;
+        quorumSize = numNodes - bizantineProcesses - 1;
+        this.consensusIndex = 0;
     }
 
     public void addConsensusPair(int value1, String value2) {

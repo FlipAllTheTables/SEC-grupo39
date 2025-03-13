@@ -58,10 +58,6 @@ public class CommandListener implements Runnable {
                     String innit = "INNIT|" + nodestate.myId + "|" + nodestate.seqNum + "|" + arg;
                     apLink.send(innit, BASE_PORT);
                 }
-            case "STATUS":
-                System.out.println("Node State: " + nodestate);
-                break;
-
             default:
                 System.out.println("Unknown command: " + cmd);
                 break;
