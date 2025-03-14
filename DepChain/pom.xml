@@ -7,25 +7,54 @@
   <version>1.0-SNAPSHOT</version>
   <name>DepChain</name>
   <url>http://maven.apache.org</url>
+
+  <!-- Centralized Dependency Versions -->
+  <properties>
+    <junit.version>5.8.2</junit.version>
+    <surefire.version>3.0.0-M7</surefire.version>
+    <exec-plugin.version>3.1.0</exec-plugin.version>
+  </properties>
+
   <dependencies>
+    <!-- JUnit 5 API -->
     <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
-      <version>3.8.1</version>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-api</artifactId>
+      <version>${junit.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- JUnit 5 Engine -->
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-engine</artifactId>
+      <version>${junit.version}</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
+
   <build>
     <plugins>
-        <plugin>
-            <groupId>org.codehaus.mojo</groupId>
-            <artifactId>exec-maven-plugin</artifactId>
-            <version>3.1.0</version>
-            <configuration>
-                <mainClass>com.ist.DepChain.nodes.NodeStarter</mainClass>
-            </configuration>
-        </plugin>
+      <!-- Ensure JUnit 5 Tests Run -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>${surefire.version}</version>
+        <configuration>
+          <parallel>methods</parallel>
+          <threadCount>2</threadCount>
+        </configuration>
+      </plugin>
+
+      <!-- Exec Plugin -->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>${exec-plugin.version}</version>
+        <configuration>
+          <mainClass>com.ist.DepChain.nodes.NodeStarter</mainClass>
+        </configuration>
+      </plugin>
     </plugins>
   </build>
 </project>
-
