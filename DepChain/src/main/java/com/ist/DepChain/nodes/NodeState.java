@@ -19,6 +19,7 @@ public class NodeState {
     public PrivateKey privateKey;
     public List<String> blockChain;
     public boolean isBizantine;
+    public List<String> valuesToAppend;
 
     public NodeState(int myId, int numNodes, boolean isBizantine) {
         acks = new ArrayList<>();
@@ -37,6 +38,7 @@ public class NodeState {
         quorumSize = numNodes - bizantineProcesses - 1;
         this.consensusIndex = 0;
         this.isBizantine = isBizantine;
+        this.valuesToAppend = new ArrayList<>();
     }
 
     public void addConsensusPair(int value1, String value2) {

@@ -25,6 +25,8 @@ public class BizantineConsensus {
     private final String signAlgo = "SHA256withRSA";
     private List<Map<String, Integer>> countedWrites;
     private List<Map<String, Integer>> countedAccepts;
+    private List<Boolean> consenusReached;
+    private List<Boolean> alreadyWritten;
 
     public BizantineConsensus(NodeState nodeState, AuthenticatedPerfectLink apLink) {
         this.nodestate = nodeState;
@@ -32,16 +34,20 @@ public class BizantineConsensus {
         storedMessages = new ArrayList<>();
         countedWrites = new ArrayList<>();
         countedAccepts = new ArrayList<>();
+        consenusReached = new ArrayList<>();
+        alreadyWritten = new ArrayList<>();
         for (int i = 0; i < 100; i++) {
             storedMessages.add(new ArrayList<>());
             countedWrites.add(new HashMap<>());
             countedAccepts.add(new HashMap<>());
+            consenusReached.add(false);
+            alreadyWritten.add(false);
         }
     }
 
-    public void read() {
+    public void read(int consensusIndex) {
         for (int i = 1; i < nodestate.numNodes; i++) {
-            String query = "READ|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + nodestate.consensusIndex + "|";
+            String query = "READ|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + consensusIndex + "|";
             final int port = BASE_PORT + i;
             new Thread(() -> {
                 try {
@@ -142,7 +148,6 @@ public class BizantineConsensus {
             }
             // Add the cleaned message to the list
             if (verifyAuth(msg)) {
-                System.out.println("Message " + i + " verified");
                 messagesList.add(msg);
             }
         }
@@ -170,11 +175,9 @@ public class BizantineConsensus {
         for (Map.Entry<Integer, String> entry : states.entrySet()) {
             String state = entry.getValue();
             String cleanState = state.replace("<", "").replace(">", "");
-            System.out.println("State: " + cleanState);
 
             // Split the state using the ',' delimiter
             String[] stateArray = cleanState.split(",", 3);
-            System.out.println("StateArray: " + stateArray.toString());
             int timestamp = Integer.parseInt(stateArray[0]);
             String value = stateArray[1];
 
@@ -244,7 +247,8 @@ public class BizantineConsensus {
         }
         countedWrites.get(consensusIndex).put(key, countedWrites.get(consensusIndex).getOrDefault(key, 0) + 1);
 
-        if (countedWrites.get(consensusIndex).get(key) == nodestate.quorumSize) {
+        if (countedWrites.get(consensusIndex).get(key) == nodestate.quorumSize && !alreadyWritten.get(consensusIndex)) {
+            alreadyWritten.set(consensusIndex, true);
             sendAccept(writeValue, consensusIndex);
         }
     }
@@ -282,10 +286,11 @@ public class BizantineConsensus {
         }
         countedAccepts.get(consensusIndex).put(value, countedAccepts.get(consensusIndex).getOrDefault(value, 0) + 1);
 
-        if (countedAccepts.get(consensusIndex).get(value) == nodestate.quorumSize) {
+        if (countedAccepts.get(consensusIndex).get(value) == nodestate.quorumSize && !consenusReached.get(consensusIndex)) {
+            consenusReached.set(consensusIndex, true);
             nodestate.val.set(consensusIndex, value);
             nodestate.blockChain.add(value);
-            nodestate.consensusIndex++;
+            nodestate.valuesToAppend.remove(value);
             System.out.println("Decided on value: " + value);          
         }
 
@@ -294,15 +299,11 @@ public class BizantineConsensus {
     private boolean verifyAuth(String message) throws Exception{
         String[] splitMsg = message.split("\\$", 6);
         String sender = message.split("\\$", 6)[1];
-        System.out.println("Sender: " + sender);
         String signature = message.split("\\$", 6)[5];
-        System.out.println("Signature: " + signature);
         StringBuilder checkSig = new StringBuilder(splitMsg[0] + "$" + splitMsg[1] + "$" + splitMsg[2] + "$" + splitMsg[3] + "$" + splitMsg[4]);
-        System.out.println("CheckSig: " + checkSig);
 
         Signature signMaker = Signature.getInstance(signAlgo);
         PublicKey pubKey = readPublicKey("src/main/java/com/ist/DepChain/keys/" + sender + "_pub.key");
-        System.out.println("src/main/java/com/ist/DepChain/keys/" + sender + "_pub.key");
         signMaker.initVerify(pubKey);
         signMaker.update(checkSig.toString().getBytes());
 
@@ -310,7 +311,6 @@ public class BizantineConsensus {
     }
 
     private String authenticate(String m) throws Exception {
-        System.out.println("Authenticating message: " + m);
         Signature signMaker = Signature.getInstance(signAlgo);
         signMaker.initSign(nodestate.privateKey);
         signMaker.update(m.getBytes());

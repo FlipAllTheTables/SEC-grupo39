@@ -21,6 +21,7 @@ import java.security.spec.X509EncodedKeySpec;
 
 import javax.xml.crypto.Data;
 
+import com.ist.DepChain.client.Client;
 import com.ist.DepChain.links.AuthenticatedPerfectLink;
 import com.ist.DepChain.nodes.Listener;
 
@@ -32,7 +33,7 @@ public class NodeStarter {
     public static NodeState nodestate;
     
     public static void main( String[] args ) throws Exception {
-        if (args.length != 3) {
+        if (args.length != 4) {
             System.err.println("Usage: NodeStarter <node_id>");
             return;
         }
@@ -41,6 +42,7 @@ public class NodeStarter {
         int num_nodes = Integer.valueOf(args[1]);
         
         boolean isBizantine = false;
+
         if (args[2].equals("1")) {
             isBizantine = true;      
         }
@@ -57,15 +59,19 @@ public class NodeStarter {
         DatagramSocket socket = new DatagramSocket(my_id + BASE_PORT);
         apLink = new AuthenticatedPerfectLink(socket, nodestate, privKey);
 
+        if (args[3].equals("1")) {
+            new Client(apLink, nodestate);
+        }
+
         BizantineConsensus bizantineConsensus = new BizantineConsensus(nodestate, apLink);
 
         Listener listener = new Listener(apLink, nodestate, bizantineConsensus);
         Thread thread = new Thread(listener);
         thread.start();
 
-        CommandListener commandListener = new CommandListener(nodestate, apLink);
+        /*CommandListener commandListener = new CommandListener(nodestate, apLink);
         Thread commandThread = new Thread(commandListener);
-        commandThread.start();
+        commandThread.start();*/
     }
 
     private static void generateRSAKeys() throws GeneralSecurityException, IOException {

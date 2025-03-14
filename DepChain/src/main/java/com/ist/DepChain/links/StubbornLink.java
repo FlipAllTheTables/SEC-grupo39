@@ -31,11 +31,8 @@ public class StubbornLink {
             i++;
             buh.append(mess).append("|");
         }
-
-        System.out.println("Sending message m: " + buh);
     
         while(nodestate.acks.contains(seqNum)) { //!acknowledged
-            System.out.println(nodestate.acks);
             try {
                 fairLossLink.send(m, port); // add seq to message
                 Thread.sleep(3000);
@@ -50,7 +47,6 @@ public class StubbornLink {
     }
 
     public void sendAck(String message, int port) throws Exception {
-        System.out.println("Sending ack to message: " + message + " to port: " + port);
         fairLossLink.send(message, port);
     }
 }

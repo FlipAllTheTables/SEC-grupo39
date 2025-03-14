@@ -51,7 +51,6 @@ public class AuthenticatedPerfectLink {
      * Method that creates a digitial signature of message as a Base64 String
      */
     private String authenticate(String m) throws Exception {
-        System.out.println("Authenticating message: " + m);
         Signature signMaker = Signature.getInstance(signAlgo);
         signMaker.initSign(privKey);
         signMaker.update(m.getBytes());
@@ -72,7 +71,7 @@ public class AuthenticatedPerfectLink {
         String signature;
         StringBuilder content = new StringBuilder();
 
-        if (command.equals("APPEND") || command.equals("INNIT") || command.equals("ACK") || command.equals("TEST")) {
+        if (command.equals("APPEND") || command.equals("INNIT") || command.equals("ACK") || command.equals("READALL") || command.equals("INFO")) {
             message = packeString.split("\\|", 5)[3];
             signature = packeString.split("\\|", 5)[4];
             content.append(command).append("|").append(sender).append("|")
