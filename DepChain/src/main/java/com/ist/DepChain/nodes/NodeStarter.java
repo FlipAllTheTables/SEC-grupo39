@@ -60,6 +60,7 @@ public class NodeStarter {
         apLink = new AuthenticatedPerfectLink(socket, nodestate, privKey);
 
         if (args[3].equals("1")) {
+            nodestate.isClient = true;
             new Client(apLink, nodestate);
         }
 

@@ -67,7 +67,7 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
                     break;
 
                 case "INNIT":
-                    //System.out.println("Received message from " + senderId + ": " + message);
+                    System.out.println("Received message from " + senderId + ": " + message);
                     try {
                         //System.out.println("Sending Acknoledge to message: " + seqNum + " from sender: " + senderId);
                         apLink.sendAck(Integer.valueOf(seqNum), Integer.valueOf(senderId));
@@ -106,7 +106,7 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
                     break;
 
                 case "READ":
-                    //System.out.println("Received message from " + senderId + ": " + message);
+                    System.out.println("Received message from " + senderId + ": " + message);
                     try {
                         //System.out.println("Sending Acknoledge to message: " + seqNum + " from sender: " + senderId);
                         apLink.sendAck(Integer.valueOf(seqNum), Integer.valueOf(senderId));
@@ -117,7 +117,7 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
                     break;
 
                 case "STATE":
-                    //System.out.println("Received message from " + senderId + ": " + message);
+                    System.out.println("Received message from " + senderId + ": " + message);
                     int consensusRun = Integer.valueOf(message.split("\\|",6)[3]);
                     try {
                         //System.out.println("Sending Acknoledge to message: " + seqNum + " from sender: " + senderId);
@@ -129,7 +129,7 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
                     break;
 
                 case "COLLECTED":
-                    //System.out.println("Received message from " + senderId + ": " + message);
+                    System.out.println("Received message from " + senderId + ": " + message);
                     try {
                         //System.out.println("Sending Acknoledge to message: " + seqNum + " from sender: " + senderId);
                         apLink.sendAck(Integer.valueOf(seqNum), Integer.valueOf(senderId));
@@ -141,7 +141,7 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
                     break;
 
                 case "WRITE":
-                    //System.out.println("Received message from " + senderId + ": " + message);
+                    System.out.println("Received message from " + senderId + ": " + message);
                     try {
                         //System.out.println("Sending Acknoledge to message: " + seqNum + " from sender: " + senderId);
                         apLink.sendAck(Integer.valueOf(seqNum), Integer.valueOf(senderId));
@@ -152,7 +152,7 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
                     break;
 
                 case "ACCEPT":
-                    //System.out.println("Received message from " + senderId + ": " + message);
+                    System.out.println("Received message from " + senderId + ": " + message);
                     try {
                         //System.out.println("Sending Acknoledge to message: " + seqNum + " from sender: " + senderId);
                         apLink.sendAck(Integer.valueOf(seqNum), Integer.valueOf(senderId));

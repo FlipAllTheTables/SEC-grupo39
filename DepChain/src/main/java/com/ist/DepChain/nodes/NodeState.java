@@ -20,6 +20,7 @@ public class NodeState {
     public List<String> blockChain;
     public boolean isBizantine;
     public List<String> valuesToAppend;
+    public boolean isClient;
 
     public NodeState(int myId, int numNodes, boolean isBizantine) {
         acks = new ArrayList<>();
@@ -39,6 +40,7 @@ public class NodeState {
         this.consensusIndex = 0;
         this.isBizantine = isBizantine;
         this.valuesToAppend = new ArrayList<>();
+        this.isClient = false;
     }
 
     public void addConsensusPair(int value1, String value2) {
