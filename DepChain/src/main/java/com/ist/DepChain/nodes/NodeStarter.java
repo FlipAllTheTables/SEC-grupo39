@@ -23,6 +23,7 @@ import javax.xml.crypto.Data;
 
 import com.ist.DepChain.links.AuthenticatedPerfectLink;
 import com.ist.DepChain.nodes.Listener;
+import com.ist.DepChain.util.RSAUtils;
 
 public class NodeStarter {
 
@@ -41,15 +42,14 @@ public class NodeStarter {
         int num_nodes = Integer.valueOf(args[1]);
         id = my_id;
         
-        generateRSAKeys();
+        RSAUtils.generateRSAKeyPair(id);
         nodestate = new NodeState(my_id, num_nodes);
 
-        PrivateKey privKey = (PrivateKey) readRSA("src/main/java/com/ist/DepChain/keys/" + id + "_priv.key", "priv");
-        nodestate.privateKey = privKey;
+        nodestate.privateKey = RSAUtils.readPrivateKey("src/main/java/com/ist/DepChain/keys/" + id + "_priv.key");;
 
         // AuthenticatedPerfectLink used to communicate with other nodes
         DatagramSocket socket = new DatagramSocket(my_id + BASE_PORT);
-        apLink = new AuthenticatedPerfectLink(socket, nodestate, privKey);
+        apLink = new AuthenticatedPerfectLink(socket, nodestate);
 
         BizantineConsensus bizantineConsensus = new BizantineConsensus(nodestate, apLink);
 
@@ -60,43 +60,6 @@ public class NodeStarter {
         CommandListener commandListener = new CommandListener(nodestate, apLink);
         Thread commandThread = new Thread(commandListener);
         commandThread.start();
-    }
-
-    private static void generateRSAKeys() throws GeneralSecurityException, IOException {
-        System.out.println("Generating RSA keys for node " + id);
-        KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA");
-        keyGen.initialize(4096);
-        KeyPair keys = keyGen.generateKeyPair();
-
-        PrivateKey privKey = keys.getPrivate();
-        byte[] privKeyEncoded = privKey.getEncoded();
-
-        try (FileOutputStream privFos = new FileOutputStream("src/main/java/com/ist/DepChain/keys/" + id + "_priv.key")) {
-            privFos.write(privKeyEncoded);
-        }
-
-        PublicKey pubKey = keys.getPublic();
-        byte[] pubKeyEncoded = pubKey.getEncoded();
-
-        try (FileOutputStream pubFos = new FileOutputStream("src/main/java/com/ist/DepChain/keys/" + id + "_pub.key")) {
-            pubFos.write(pubKeyEncoded);
-        }        
-    }
-
-    public static Key readRSA(String keyPath, String type) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
-        byte[] encoded;
-        try (FileInputStream fis = new FileInputStream(keyPath)) {
-            encoded = new byte[fis.available()];
-            fis.read(encoded);
-        }
-        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-        if (type.equals("pub") ){
-            X509EncodedKeySpec keySpec = new X509EncodedKeySpec(encoded);
-            return keyFactory.generatePublic(keySpec);
-        }
-
-        PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(encoded);
-        return keyFactory.generatePrivate(keySpec);
     }
 }
 
