@@ -32,17 +32,23 @@ public class NodeStarter {
     public static NodeState nodestate;
     
     public static void main( String[] args ) throws Exception {
-        if (args.length != 2) {
+        if (args.length != 3) {
             System.err.println("Usage: NodeStarter <node_id>");
             return;
         }
 
         int my_id = Integer.valueOf(args[0]);
         int num_nodes = Integer.valueOf(args[1]);
+        
+        boolean isBizantine = false;
+        if (args[2].equals("1")) {
+            isBizantine = true;      
+        }
+
         id = my_id;
         
         generateRSAKeys();
-        nodestate = new NodeState(my_id, num_nodes);
+        nodestate = new NodeState(my_id, num_nodes, isBizantine);
 
         PrivateKey privKey = (PrivateKey) readRSA("src/main/java/com/ist/DepChain/keys/" + id + "_priv.key", "priv");
         nodestate.privateKey = privKey;

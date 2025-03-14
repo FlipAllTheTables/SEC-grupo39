@@ -12,6 +12,7 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 
 import com.ist.DepChain.links.AuthenticatedPerfectLink;
 import com.ist.DepChain.util.Pair;
@@ -55,14 +56,20 @@ public class BizantineConsensus {
     public void state(String message){
         String consensusIndex = message.split("\\|", 6)[3];
         int senderId = Integer.parseInt(message.split("\\|", 6)[1]);
-        
-        String state = "STATE|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + consensusIndex + "|<" + 
-        nodestate.valts.get(Integer.parseInt(consensusIndex)) + "," + nodestate.val.get(Integer.parseInt(consensusIndex)) + "," + nodestate.consensusPairs + ">";
+        String state;
 
-        try {
-            apLink.send(state, BASE_PORT + senderId);
-        } catch (Exception e) {
-            e.printStackTrace();
+        if (nodestate.isBizantine){
+            state = bizantineState(consensusIndex);
+        }
+        else{
+            state = "STATE|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + consensusIndex + "|<" + 
+            nodestate.valts.get(Integer.parseInt(consensusIndex)) + "," + nodestate.val.get(Integer.parseInt(consensusIndex)) + "," + nodestate.consensusPairs + ">";
+
+            try {
+                apLink.send(state, BASE_PORT + senderId);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
     }
 
@@ -101,8 +108,16 @@ public class BizantineConsensus {
                     e.printStackTrace();
                 }
             }).start();
-        }
 
+            if (i == nodestate.numNodes - 1) {
+                try{
+                    readCollected(content, Integer.parseInt(consensusIndex));
+                }
+                catch (Exception e){
+                    e.printStackTrace();
+                }
+            }
+        }
     }
 
     public void readCollected(String message, int consensusIndex) throws Exception {
@@ -194,18 +209,24 @@ public class BizantineConsensus {
 
     private void writeValue(int timestamp, String value, int consensusIndex){
         for (int i = 0; i < nodestate.numNodes; i++) {
+            String content;
             if (i == nodestate.myId){
                 continue;
             }
-            String content = "WRITE|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + consensusIndex + "|" + timestamp + "," + value;
+            if (nodestate.isBizantine) {
+                content = bizantineWrite(consensusIndex);
+            }
+            else {
+                content = "WRITE|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + consensusIndex + "|" + timestamp + "," + value;
+            }
             final int port = BASE_PORT + i;
-            new Thread(() -> {
-                try {
-                    apLink.send(content, port);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }).start();
+                new Thread(() -> {
+                    try {
+                        apLink.send(content, port);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }).start();
         }
     }
 
@@ -230,10 +251,16 @@ public class BizantineConsensus {
 
     public void sendAccept (String value, int consensusIndex) {
         for (int i = 0; i < nodestate.numNodes; i++) {
+            String content;
             if (i == nodestate.myId){
                 continue;
             }
-            String content = "ACCEPT|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + consensusIndex + "|" + value;
+            if (nodestate.isBizantine) {
+                content = bizantineAccept(consensusIndex);
+            }
+            else {
+                content = "ACCEPT|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + consensusIndex + "|" + value;
+            }
             final int port = BASE_PORT + i;
             new Thread(() -> {
                 try {
@@ -257,6 +284,7 @@ public class BizantineConsensus {
 
         if (countedAccepts.get(consensusIndex).get(value) == nodestate.quorumSize) {
             nodestate.val.set(consensusIndex, value);
+            nodestate.blockChain.add(value);
             nodestate.consensusIndex++;
             System.out.println("Decided on value: " + value);          
         }
@@ -267,7 +295,6 @@ public class BizantineConsensus {
         String[] splitMsg = message.split("\\$", 6);
         String sender = message.split("\\$", 6)[1];
         System.out.println("Sender: " + sender);
-        String content = message.split("\\$", 6)[4];
         String signature = message.split("\\$", 6)[5];
         System.out.println("Signature: " + signature);
         StringBuilder checkSig = new StringBuilder(splitMsg[0] + "$" + splitMsg[1] + "$" + splitMsg[2] + "$" + splitMsg[3] + "$" + splitMsg[4]);
@@ -295,6 +322,61 @@ public class BizantineConsensus {
         byte[] keyBytes = Files.readAllBytes(Paths.get(filename)); // Read the binary key file
         KeyFactory keyFactory = KeyFactory.getInstance("RSA");
         return keyFactory.generatePublic(new X509EncodedKeySpec(keyBytes));
+    }
+
+    private String bizantineState (String consensusIndex) {
+        Random random = new Random();
+        int length = 10; // Length of the random string
+        String characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+
+        StringBuilder randomString = new StringBuilder();
+        for (int i = 0; i < length; i++) {
+            int index = random.nextInt(characters.length());
+            randomString.append(characters.charAt(index));
+        }
+
+        Pair pair = new Pair(random.nextInt(100), randomString.toString());
+
+        for (int i = 0; i < length; i++) {
+            int index = random.nextInt(characters.length());
+            randomString.append(characters.charAt(index));
+        }
+
+        String state = "STATE|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + consensusIndex + "|<" + 
+        random.nextInt(100) + "," + randomString.toString() + "," + pair  + ">";
+
+        return state;
+    }
+
+    private String bizantineWrite (Integer consensusIndex) {
+        Random random = new Random();
+        int timestamp = random.nextInt(100);
+        int length = 10; // Length of the random string
+        String characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+
+        StringBuilder randomString = new StringBuilder();
+        for (int i = 0; i < length; i++) {
+            int index = random.nextInt(characters.length());
+            randomString.append(characters.charAt(index));
+        }
+
+        String content = "WRITE|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + consensusIndex + "|" + timestamp + "," + randomString.toString();
+        return content;
+    }
+
+    private String bizantineAccept (Integer consensusIndex) {
+        Random random = new Random();
+        int length = 10; // Length of the random string
+        String characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+
+        StringBuilder randomString = new StringBuilder();
+        for (int i = 0; i < length; i++) {
+            int index = random.nextInt(characters.length());
+            randomString.append(characters.charAt(index));
+        }
+
+        String content = "ACCEPT|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + consensusIndex + "|" + randomString.toString();
+        return content;
     }
 }
 
