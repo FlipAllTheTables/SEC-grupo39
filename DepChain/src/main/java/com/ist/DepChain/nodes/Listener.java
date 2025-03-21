@@ -107,8 +107,10 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
 
                 case "READ":
                     System.out.println("Received message from " + senderId + ": " + message);
-                    if (Integer.valueOf(senderId) != 0)
+                    if (Integer.valueOf(senderId) != 0) {
+                        System.out.println("READ command comes from non-leader node, discarded");
                         return;
+                    }
                     try {
                         //System.out.println("Sending Acknoledge to message: " + seqNum + " from sender: " + senderId);
                         apLink.sendAck(Integer.valueOf(seqNum), Integer.valueOf(senderId));
