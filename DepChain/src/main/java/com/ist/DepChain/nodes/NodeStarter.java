@@ -34,29 +34,23 @@ public class NodeStarter {
     
     public static void main( String[] args ) throws Exception {
         if (args.length != 4) {
-            System.err.println("Usage: NodeStarter <node_id>");
+            System.err.println("Usage: NodeStarter <node_id> <num_nodes> <is_byzantine> <is_client>");
             return;
         }
 
-        int my_id = Integer.valueOf(args[0]);
+        id = Integer.valueOf(args[0]);
         int num_nodes = Integer.valueOf(args[1]);
         
-        boolean isBizantine = false;
-
-        if (args[2].equals("1")) {
-            isBizantine = true;      
-        }
-
-        id = my_id;
+        boolean isByzantine = args[2].equals("1") ? true : false;
         
         generateRSAKeys();
-        nodestate = new NodeState(my_id, num_nodes, isBizantine);
+        nodestate = new NodeState(id, num_nodes, isByzantine);
 
         PrivateKey privKey = (PrivateKey) readRSA("src/main/java/com/ist/DepChain/keys/" + id + "_priv.key", "priv");
         nodestate.privateKey = privKey;
 
         // AuthenticatedPerfectLink used to communicate with other nodes
-        DatagramSocket socket = new DatagramSocket(my_id + BASE_PORT);
+        DatagramSocket socket = new DatagramSocket(id + BASE_PORT);
         apLink = new AuthenticatedPerfectLink(socket, nodestate, privKey);
 
         if (args[3].equals("1")) {
