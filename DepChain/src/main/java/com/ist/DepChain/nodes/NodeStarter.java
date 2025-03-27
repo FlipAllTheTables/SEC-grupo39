@@ -64,9 +64,9 @@ public class NodeStarter {
         Thread thread = new Thread(listener);
         thread.start();
 
-        /*CommandListener commandListener = new CommandListener(nodestate, apLink);
+        CommandListener commandListener = new CommandListener(nodestate, apLink);
         Thread commandThread = new Thread(commandListener);
-        commandThread.start();*/
+        commandThread.start();
     }
 
     private static void generateRSAKeys() throws GeneralSecurityException, IOException {

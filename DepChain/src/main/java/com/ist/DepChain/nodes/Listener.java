@@ -54,7 +54,7 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
                     //System.out.println("Received ack from " + senderId +  " with sequence number: " + seqNum);
 
                     // Verify if acknowledge message received comes from a node to which there is an acknowledge waiting
-                    if (nodestate.acks.containsKey(Integer.valueOf(senderId)) && nodestate.acks.get(Integer.valueOf(senderId)).contains(seqNum))
+                    if (nodestate.acks.containsKey(Integer.valueOf(senderId)) && nodestate.acks.get(Integer.valueOf(senderId)).contains(Integer.valueOf(seqNum)))
                         nodestate.acks.get(Integer.valueOf(senderId)).remove(Integer.valueOf(seqNum));
                     break;
 
