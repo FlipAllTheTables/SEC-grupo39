@@ -3,6 +3,7 @@ package com.ist.DepChain.links;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketException;
+import java.util.ArrayList;
 
 import com.ist.DepChain.nodes.NodeState;
 
@@ -19,9 +20,13 @@ public class StubbornLink {
     }
 
     public void send(String m, int port) {
+        int id = port - 5000;
         String[] readableMessage = m.split("\\|");
         int seqNum = Integer.parseInt(readableMessage[2]);
-        nodestate.acks.add(seqNum);
+        if (!nodestate.acks.containsKey(id)) {  //If acks HashMap doesn't contain destination ID key, add it with empty ArrayList
+            nodestate.acks.put(id, new ArrayList<>());
+        }
+        nodestate.acks.get(id).add(seqNum);
         StringBuilder buh = new StringBuilder();
         int i = 0;
         for (String mess : readableMessage) {
@@ -32,7 +37,7 @@ public class StubbornLink {
             buh.append(mess).append("|");
         }
     
-        while(nodestate.acks.contains(seqNum)) { //!acknowledged
+        while(nodestate.acks.get(id).contains(seqNum)) { //!acknowledged
             try {
                 fairLossLink.send(m, port); // add seq to message
                 Thread.sleep(3000);

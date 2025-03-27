@@ -3,10 +3,12 @@ package com.ist.DepChain.nodes;
 import java.security.PrivateKey;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 import com.ist.DepChain.util.Pair;
 
 public class NodeState {
-    public List<Integer> acks;  //HashMap<Integer, List<Integer>> acks      Acknowledges esperados de cada comunicação
+    public Map<Integer, List<Integer>> acks;
     public int seqNum;          //HashMap<Integer, Integer> seqNums   Sequence numbers recebidos em cada comunicação
     public int myId;
     public int numNodes;
@@ -25,7 +27,7 @@ public class NodeState {
     //TODO Adicionar HashMap<Integer, SecretKey> sharedKeys       HashMap que associa cada comunicação com uma chave partilhada
 
     public NodeState(int myId, int numNodes, boolean isBizantine) {
-        acks = new ArrayList<>();
+        acks = new HashMap<>();
         seqNum = 0;
         this.myId = myId;
         this.numNodes = numNodes;
