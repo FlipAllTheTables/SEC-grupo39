@@ -1,7 +1,5 @@
 package com.ist.DepChain.client;
 
-import java.lang.classfile.components.ClassPrinter.Node;
-
 import com.ist.DepChain.links.AuthenticatedPerfectLink;
 import com.ist.DepChain.nodes.NodeState;
 
