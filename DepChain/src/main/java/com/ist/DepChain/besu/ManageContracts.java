@@ -22,18 +22,15 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.math.BigInteger;
-import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 public class ManageContracts {
     private static Address istCoinAddress;
-    private static Address blackListAddress;
     public static MutableAccount contractAccount;
     public static MutableAccount blackListAccount;
     public static EVMExecutor istCoinExecutor;
-    public static EVMExecutor blackListExecutor;
     public HashMap<String, Contract> contracts;
     public HashMap<String, Account> accounts;
     ByteArrayOutputStream byteArrayOutputStreamIst;
@@ -75,9 +72,6 @@ public class ManageContracts {
         istCoinExecutor.commitWorldState();
 
         initializeAccounts(accounts, simpleWorld);
-
-        executeAddToBlackList("0000000000000000000000000000000000000002");
-        executeTransfer("0000000000000000000000000000000000000002", "0000000000000000000000000000000000000003", 0);
     }
 
     public void initializeAccounts(HashMap<String, Account> accounts, SimpleWorld simpleWorld) {
@@ -165,9 +159,32 @@ public class ManageContracts {
         }
     }
 
+    public void executeTx(String message){
+        String decodedMessage = Base64.getDecoder().decode(message).toString();
+
+        JsonObject jsonObject = JsonParser.parseString(decodedMessage).getAsJsonObject();
+        String sender = jsonObject.get("sender").getAsString();
+        String receiver = jsonObject.get("receiver").getAsString();
+        String value = jsonObject.get("value").getAsString();
+        String data = jsonObject.get("data").getAsString();
+
+        if(Integer.parseInt(value) > 0){
+            depCoinExchange(accounts.get(sender), accounts.get(receiver), Integer.parseInt(value));
+        }
+    }
+
+    public void depCoinExchange(Account sender, Account receiver, int amount){
+        if(sender.account.getBalance().compareTo(Wei.fromEth(amount)) < 0) {
+            System.out.println("Insufficient balance for transaction.");
+            return;
+        }
+        sender.account.decrementBalance(Wei.fromEth(amount));
+        receiver.account.incrementBalance(Wei.fromEth(amount));
+        System.out.println("Transaction successful. New balances:");
+    }
+
     public void executeTransfer(String sender, String to, int amount){
         String paddedTo = padHexStringTo256Bit(to);
-        String paddedSender = padHexStringTo256Bit(sender);
         String paddedAmount = convertIntegerToHex256Bit(amount);
 
         String transferCodeWithArgs = contracts.get("ISTCoin").methodIds.get("transfer") + paddedTo + paddedAmount;
@@ -211,9 +228,9 @@ public class ManageContracts {
         String paddedAddress = padHexStringTo256Bit(address);
 
         String removeFromBlackListCodeWithArgs = contracts.get("BlackList").methodIds.get("removeFromBlackList") + paddedAddress;
-        blackListExecutor.sender(Address.fromHexString(address));
-        blackListExecutor.callData(Bytes.fromHexString(removeFromBlackListCodeWithArgs));
-        blackListExecutor.execute();
+        istCoinExecutor.sender(Address.fromHexString(address));
+        istCoinExecutor.callData(Bytes.fromHexString(removeFromBlackListCodeWithArgs));
+        istCoinExecutor.execute();
 
         String count = extractBooleanReturnData(byteArrayOutputStreamIst);
         System.out.println("RemoveFromBlackList():' " + count);
@@ -223,9 +240,9 @@ public class ManageContracts {
         String paddedAddress = padHexStringTo256Bit(address);
 
         String isBlackListedCodeWithArgs = contracts.get("BlackList").methodIds.get("isBlackListed") + paddedAddress;
-        blackListExecutor.sender(Address.fromHexString(address));
-        blackListExecutor.callData(Bytes.fromHexString(isBlackListedCodeWithArgs));
-        blackListExecutor.execute();
+        istCoinExecutor.sender(Address.fromHexString(address));
+        istCoinExecutor.callData(Bytes.fromHexString(isBlackListedCodeWithArgs));
+        istCoinExecutor.execute();
 
         String count = extractBooleanReturnData(byteArrayOutputStreamIst);
         System.out.println("isBlackListed():' " + count);
@@ -233,7 +250,6 @@ public class ManageContracts {
 
     public void executeApprove(String sender, String spender, int amount){
         String paddedSpender = padHexStringTo256Bit(spender);
-        String paddedSender = padHexStringTo256Bit(sender);
         String paddedAmount = convertIntegerToHex256Bit(amount);
 
         String approveCodeWithArgs = contracts.get("ISTCoin").methodIds.get("approve") + paddedSpender + paddedAmount;

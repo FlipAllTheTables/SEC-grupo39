@@ -23,6 +23,7 @@ public class NodeState {
     public boolean isBizantine;
     public List<String> valuesToAppend;
     public boolean isClient;
+    public int currentBlockSize;
 
     //TODO Adicionar HashMap<Integer, SecretKey> sharedKeys       HashMap que associa cada comunicação com uma chave partilhada
 

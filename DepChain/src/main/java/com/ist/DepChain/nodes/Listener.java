@@ -69,7 +69,7 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
                     }
                     break;
 
-                case "INNIT":
+                case "ISTTX":
                     System.out.println("Received message from " + senderId + ": " + message);
                     try {
                         //System.out.println("Sending Acknoledge to message: " + seqNum + " from sender: " + senderId);
@@ -98,6 +98,45 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
                     }
                     else{
                         String init = "INNIT|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + value;
+                        new Thread(() -> {
+                            try {
+                                apLink.send(init, BASE_PORT);
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                        }).start();
+                    }                    
+                    break;
+
+                    case "DEPTX":
+                    System.out.println("Received message from " + senderId + ": " + message);
+                    try {
+                        //System.out.println("Sending Acknoledge to message: " + seqNum + " from sender: " + senderId);
+                        apLink.sendAck(Integer.valueOf(seqNum), Integer.valueOf(senderId));
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+
+                    String value1 = message.split("\\|",6)[3];
+
+                    if (nodestate.myId == 0){ //If im the leader
+                        synchronized(nodestate.valuesToAppend){
+                            if (!nodestate.valuesToAppend.contains(value1)){
+                                System.out.println("Value: " + value1 + " added to the list of values to append");
+                                nodestate.valuesToAppend.add(value1);
+                            }
+                            else{
+                                System.out.println("Value: " + value1 + " already in the list of values to append");
+                                return;
+                            }
+                            int consensusIndex = ++nodestate.consensusIndex;
+                            nodestate.val.add(consensusIndex, value1);
+                            nodestate.valts.add(consensusIndex, 0);
+                            bizantineConsensus.read(consensusIndex);
+                        }
+                    }
+                    else{
+                        String init = "INNIT|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + value1;
                         new Thread(() -> {
                             try {
                                 apLink.send(init, BASE_PORT);

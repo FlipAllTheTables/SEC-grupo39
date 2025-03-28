@@ -287,10 +287,15 @@ public class BizantineConsensus {
         countedAccepts.get(consensusIndex).put(value, countedAccepts.get(consensusIndex).getOrDefault(value, 0) + 1);
 
         if (countedAccepts.get(consensusIndex).get(value) == nodestate.quorumSize && !consenusReached.get(consensusIndex)) {
+            nodestate.currentBlockSize++;
             consenusReached.set(consensusIndex, true);
             nodestate.val.set(consensusIndex, value);
             nodestate.blockChain.add(value);
             nodestate.valuesToAppend.remove(value);
+            if(nodestate.currentBlockSize == 10){
+                //Create a new block
+                nodestate.currentBlockSize = 0;
+            }
             System.out.println("Decided on value: " + value);          
         }
 

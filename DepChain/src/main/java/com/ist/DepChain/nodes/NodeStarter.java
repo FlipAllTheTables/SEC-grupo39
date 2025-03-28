@@ -25,6 +25,8 @@ import javax.xml.crypto.Data;
 import com.ist.DepChain.client.Client;
 import com.ist.DepChain.links.AuthenticatedPerfectLink;
 import com.ist.DepChain.nodes.Listener;
+import com.ist.DepChain.*;
+import com.ist.DepChain.besu.ManageContracts;
 
 public class NodeStarter {
 
@@ -50,6 +52,9 @@ public class NodeStarter {
         PrivateKey privKey = (PrivateKey) readRSA("src/main/java/com/ist/DepChain/keys/" + id + "_priv.key", "priv");
         nodestate.privateKey = privKey;
 
+        ManageContracts manageContracts = new ManageContracts();
+        manageContracts.parseGenesisBlock("src/main/java/com/ist/DepChain/genesis/genesis.json");
+
         // AuthenticatedPerfectLink used to communicate with other nodes
         DatagramSocket socket = new DatagramSocket(id + BASE_PORT);
         apLink = new AuthenticatedPerfectLink(socket, nodestate, privKey);
@@ -66,7 +71,7 @@ public class NodeStarter {
         thread.start();
 
         // For each node that exists, send a message with "ESTABLISH" command to begin connection
-        for (int i = 0; i < id; i++) {
+        for (int i = 0; i < id && i < num_nodes; i++) {
             nodestate.acks.put(i, new ArrayList<>()); // Create an association between node and awaited acknowledgements
             String message = "ESTABLISH|" + id + "|" + nodestate.seqNum + "|establish";
             apLink.send(message, BASE_PORT + i);
