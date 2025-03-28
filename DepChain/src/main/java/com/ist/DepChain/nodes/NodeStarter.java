@@ -6,6 +6,7 @@ import java.security.GeneralSecurityException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.PrivateKey;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -63,6 +64,13 @@ public class NodeStarter {
         Listener listener = new Listener(apLink, nodestate, bizantineConsensus);
         Thread thread = new Thread(listener);
         thread.start();
+
+        // For each node that exists, send a message with "ESTABLISH" command to begin connection
+        for (int i = 0; i < id; i++) {
+            nodestate.acks.put(i, new ArrayList<>()); // Create an association between node and awaited acknowledgements
+            String message = "ESTABLISH|" + id + "|" + nodestate.seqNum + "|establish";
+            apLink.send(message, BASE_PORT + i);
+        }
 
         CommandListener commandListener = new CommandListener(nodestate, apLink);
         Thread commandThread = new Thread(commandListener);

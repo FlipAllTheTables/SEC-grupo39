@@ -1,6 +1,8 @@
 package com.ist.DepChain.nodes;
 
 import java.net.DatagramPacket;
+import java.util.ArrayList;
+
 import com.ist.DepChain.links.AuthenticatedPerfectLink;
 
 /**
@@ -195,6 +197,16 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
                     }
                     String content = message.split("\\|",6)[3];
                     System.out.println("Received message from " + senderId + ": " + content);
+                    break;
+
+                case "ESTABLISH":
+                    System.out.println("Received message from " + senderId + ": " + message);
+                    try {
+                        apLink.sendAck(Integer.valueOf(seqNum), Integer.valueOf(senderId));
+                        nodestate.acks.put(Integer.valueOf(senderId), new ArrayList<>());
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
                     break;
 
                 default:
