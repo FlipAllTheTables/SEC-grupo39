@@ -23,9 +23,6 @@ public class StubbornLink {
         int id = port - 5000;
         String[] readableMessage = m.split("\\|");
         int seqNum = Integer.parseInt(readableMessage[2]);
-        if (!nodestate.acks.containsKey(id)) {  //If acks HashMap doesn't contain destination ID key, add it with empty ArrayList
-            nodestate.acks.put(id, new ArrayList<>());
-        }
         nodestate.acks.get(id).add(seqNum);
         StringBuilder buh = new StringBuilder();
         int i = 0;

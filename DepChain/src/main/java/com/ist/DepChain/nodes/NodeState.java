@@ -9,7 +9,7 @@ import com.ist.DepChain.util.Pair;
 
 public class NodeState {
     public Map<Integer, List<Integer>> acks;    //Guardar acknowledges esperados em cada comunicação
-    public int seqNum;                          //HashMap<Integer, Integer> seqNums   Sequence numbers recebidos em cada comunicação
+    public int seqNum;                          //HashMap<Integer, Integer> seqNums, guardar próximo seqNumber para cada comunicação
     public int myId;
     public int numNodes;
     public List<Integer> valts;
