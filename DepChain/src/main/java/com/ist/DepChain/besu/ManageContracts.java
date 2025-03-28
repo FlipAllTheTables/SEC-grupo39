@@ -231,6 +231,22 @@ public class ManageContracts {
         System.out.println("isBlackListed():' " + count);
     }
 
+    public void executeApprove(String sender, String spender, int amount){
+        String paddedSpender = padHexStringTo256Bit(spender);
+        String paddedSender = padHexStringTo256Bit(sender);
+        String paddedAmount = convertIntegerToHex256Bit(amount);
+
+        String approveCodeWithArgs = contracts.get("ISTCoin").methodIds.get("approve") + paddedSpender + paddedAmount;
+        System.out.println("Approve Code with Args: " + approveCodeWithArgs);
+        istCoinExecutor.sender(Address.fromHexString(sender));
+        istCoinExecutor.callData(Bytes.fromHexString(approveCodeWithArgs));
+        istCoinExecutor.execute();
+
+        String count = extractBooleanReturnData(byteArrayOutputStreamIst);
+        System.out.println("Output of 'approve():' " + count);
+
+    }
+
     public static String extractFromReturnData(ByteArrayOutputStream byteArrayOutputStream) {
         String[] lines = byteArrayOutputStream.toString().split("\\r?\\n");
         JsonObject jsonObject = JsonParser.parseString(lines[lines.length - 1]).getAsJsonObject();
