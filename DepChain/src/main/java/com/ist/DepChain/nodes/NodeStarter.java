@@ -53,7 +53,7 @@ public class NodeStarter {
         nodestate.privateKey = privKey;
 
         ManageContracts manageContracts = new ManageContracts();
-        manageContracts.parseGenesisBlock("src/main/java/com/ist/DepChain/genesis/genesis.json");
+        manageContracts.parseGenesisBlock("src/main/java/com/ist/DepChain/genesis_block/genesis_block.json", nodestate);
 
         // AuthenticatedPerfectLink used to communicate with other nodes
         DatagramSocket socket = new DatagramSocket(id + BASE_PORT);
@@ -64,7 +64,7 @@ public class NodeStarter {
             new Client(apLink, nodestate);
         }
 
-        BizantineConsensus bizantineConsensus = new BizantineConsensus(nodestate, apLink);
+        BizantineConsensus bizantineConsensus = new BizantineConsensus(nodestate, apLink, manageContracts);
 
         Listener listener = new Listener(apLink, nodestate, bizantineConsensus);
         Thread thread = new Thread(listener);
@@ -72,14 +72,26 @@ public class NodeStarter {
 
         // For each node that exists, send a message with "ESTABLISH" command to begin connection
         for (int i = 0; i < id && i < num_nodes; i++) {
-            nodestate.acks.put(i, new ArrayList<>()); // Create an association between node and awaited acknowledgements
-            String message = "ESTABLISH|" + id + "|" + nodestate.seqNum + "|establish";
-            apLink.send(message, BASE_PORT + i);
+            int index = i;
+            new Thread(() -> {
+                try{
+                    nodestate.acks.put(index, new ArrayList<>()); // Create an association between node and awaited acknowledgements
+                    String message = "ESTABLISH|" + id + "|" + nodestate.seqNum + "|establish";
+                    apLink.send(message, BASE_PORT + index);
+                }
+                catch (Exception e) {
+                    e.printStackTrace();
+                }
+
+            }).start();
         }
 
-        CommandListener commandListener = new CommandListener(nodestate, apLink);
-        Thread commandThread = new Thread(commandListener);
-        commandThread.start();
+        if(args[3].equals("0")){
+            CommandListener commandListener = new CommandListener(nodestate, apLink);
+            Thread commandThread = new Thread(commandListener);
+            commandThread.start();
+        }
+
     }
 
     private static void generateRSAKeys() throws GeneralSecurityException, IOException {

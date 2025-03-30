@@ -71,7 +71,7 @@ public class AuthenticatedPerfectLink {
         String signature;
         StringBuilder content = new StringBuilder();
 
-        if (command.equals("APPEND") || command.equals("INNIT") || command.equals("ACK") || command.equals("READALL") || command.equals("INFO") || command.equals("TEST") || command.equals("ESTABLISH")) {
+        if (command.equals("APPEND") || command.equals("INNIT") || command.equals("ACK") || command.equals("READALL") || command.equals("INFO") || command.equals("TEST") || command.equals("ESTABLISH") || command.equals("ISTTX") || command.equals("DEPTX")) {
             message = packeString.split("\\|", 5)[3];
             signature = packeString.split("\\|", 5)[4];
             content.append(command).append("|").append(sender).append("|")

@@ -1,5 +1,9 @@
 package com.ist.DepChain.client;
 
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.List;
+import java.util.Random;
 import java.util.Scanner;
 
 import com.ist.DepChain.links.AuthenticatedPerfectLink;
@@ -14,10 +18,16 @@ public class ClientCommandListener implements Runnable {
     private NodeState nodestate;
     private AuthenticatedPerfectLink apLink;
     private static final int BASE_PORT = 5000;
+    List<String> accounts;
 
     public ClientCommandListener (NodeState nodeState, AuthenticatedPerfectLink apLink) {
         this.nodestate = nodeState;
         this.apLink = apLink;
+        accounts = new ArrayList<>();
+        accounts.add("0000000000000000000000000000000000000001");
+        accounts.add("0000000000000000000000000000000000000002");
+        accounts.add("0000000000000000000000000000000000000003");
+        accounts.add("0000000000000000000000000000000000000004");
     }
 
     @Override
@@ -45,7 +55,7 @@ public class ClientCommandListener implements Runnable {
         scanner.close();
     }
 
-    private void commandHandler(String command) throws Exception{
+    private synchronized void commandHandler(String command) throws Exception{
         String[] parts = command.split("\\s+", 2);
         String cmd = parts[0];
         String arg = (parts.length > 1) ? parts[1] : "";
@@ -106,7 +116,8 @@ public class ClientCommandListener implements Runnable {
                     }
                     break;
                 }
-
+                String nounce = Integer.toString(nodestate.myId) + Integer.toString(nodestate.seqNum);
+                encodedTx += "%" + Base64.getEncoder().encodeToString(nounce.getBytes());
                 for (i = 1; i < nodestate.numNodes-nodestate.bizantineProcesses + 1; i++) {
                     String isttx = "DEPTX|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + encodedTx;
                     int sendPort = BASE_PORT + i;
@@ -144,6 +155,8 @@ public class ClientCommandListener implements Runnable {
                         }
                         args = argString.split("\\s+");
                         encodedIstTx = formatIstTx(transaction, args);
+                        String nounce1 = Integer.toString(nodestate.myId) + Integer.toString(nodestate.seqNum);
+                        encodedIstTx += "%" + Base64.getEncoder().encodeToString(nounce1.getBytes());
                     }
                     catch (Exception e) {
                         System.out.println("Error parsing input. Please try again.");
@@ -164,6 +177,58 @@ public class ClientCommandListener implements Runnable {
                     }).start();
                 }
                 break;
+
+            case "LOOP":
+                Random random = new Random();
+                for(int index=0; index<10;index++){
+                    if(random.nextBoolean()){
+                        String encodedDepTx;
+                        int randomIndex = random.nextInt(accounts.size());
+                        String randomAccount = accounts.get(randomIndex);
+                        String randomAccount2 = accounts.get(random.nextInt(accounts.size()));
+        
+                        encodedDepTx = formatDepTx(randomAccount, randomAccount2, random.nextInt(100));
+
+                        String nounce1 = Integer.toString(nodestate.myId) + Integer.toString(nodestate.seqNum);
+                        encodedDepTx += "%" + Base64.getEncoder().encodeToString(nounce1.getBytes());
+
+                        for (i = 1; i < nodestate.numNodes-nodestate.bizantineProcesses + 1; i++) {
+                            String isttx = "DEPTX|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + encodedDepTx;
+                            int sendPort = BASE_PORT + i;
+                            new Thread(() -> {
+                                try {
+                                    apLink.send(isttx, sendPort);
+                                } catch (Exception e) {
+                                    e.printStackTrace();
+                                }
+                            }).start();
+                        }
+                    }
+                    else{
+                        String encodedIstTx1;
+                        int randomIndex = random.nextInt(accounts.size());
+                        String randomAccount = accounts.get(randomIndex);
+                        String randomAccount2 = accounts.get(random.nextInt(accounts.size()));
+        
+                        encodedIstTx1 = formatIstTx("transfer", new String[]{randomAccount, randomAccount2, Integer.toString(random.nextInt(100))});
+                        String nounce1 = Integer.toString(nodestate.myId) + Integer.toString(nodestate.seqNum);
+                        encodedIstTx1 += "%" + Base64.getEncoder().encodeToString(nounce1.getBytes());
+
+                        for (i = 1; i < nodestate.numNodes-nodestate.bizantineProcesses + 1; i++) {
+                            String isttx = "ISTTX|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + encodedIstTx1;
+                            int sendPort = BASE_PORT + i;
+                            new Thread(() -> {
+                                try {
+                                    apLink.send(isttx, sendPort);
+                                } catch (Exception e) {
+                                    e.printStackTrace();
+                                }
+                            }).start();
+                        }
+                    }
+
+                }
+
             
             case "READALL":
                 for (i = 1; i < nodestate.numNodes-nodestate.bizantineProcesses + 1; i++) {

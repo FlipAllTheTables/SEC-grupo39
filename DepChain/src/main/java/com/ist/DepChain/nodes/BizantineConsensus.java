@@ -1,6 +1,5 @@
 package com.ist.DepChain.nodes;
 
-import java.net.DatagramPacket;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.KeyFactory;
@@ -14,6 +13,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.ist.DepChain.besu.ManageContracts;
+import com.ist.DepChain.blocks.Block;
 import com.ist.DepChain.links.AuthenticatedPerfectLink;
 import com.ist.DepChain.util.Pair;
 
@@ -27,8 +31,10 @@ public class BizantineConsensus {
     private List<Map<String, Integer>> countedAccepts;
     private List<Boolean> consenusReached;
     private List<Boolean> alreadyWritten;
+    private List<List<String>> transactionLists;
+    ManageContracts manageContracts;
 
-    public BizantineConsensus(NodeState nodeState, AuthenticatedPerfectLink apLink) {
+    public BizantineConsensus(NodeState nodeState, AuthenticatedPerfectLink apLink, ManageContracts manageContracts) {
         this.nodestate = nodeState;
         this.apLink = apLink;
         storedMessages = new ArrayList<>();
@@ -36,6 +42,7 @@ public class BizantineConsensus {
         countedAccepts = new ArrayList<>();
         consenusReached = new ArrayList<>();
         alreadyWritten = new ArrayList<>();
+        transactionLists = new ArrayList<>();
         for (int i = 0; i < 100; i++) {
             storedMessages.add(new ArrayList<>());
             countedWrites.add(new HashMap<>());
@@ -43,6 +50,7 @@ public class BizantineConsensus {
             consenusReached.add(false);
             alreadyWritten.add(false);
         }
+        this.manageContracts = manageContracts;
     }
 
     public void read(int consensusIndex) {
@@ -287,18 +295,31 @@ public class BizantineConsensus {
         countedAccepts.get(consensusIndex).put(value, countedAccepts.get(consensusIndex).getOrDefault(value, 0) + 1);
 
         if (countedAccepts.get(consensusIndex).get(value) == nodestate.quorumSize && !consenusReached.get(consensusIndex)) {
-            nodestate.currentBlockSize++;
             consenusReached.set(consensusIndex, true);
             nodestate.val.set(consensusIndex, value);
-            nodestate.blockChain.add(value);
             nodestate.valuesToAppend.remove(value);
-            if(nodestate.currentBlockSize == 10){
-                //Create a new block
-                nodestate.currentBlockSize = 0;
-            }
-            System.out.println("Decided on value: " + value);          
+            System.out.println("Decided on value: " + value);
+            addToBlockChain(value);       
         }
 
+    }
+
+    private void addToBlockChain(String transactions){
+        String decodedTransaction = new String(Base64.getDecoder().decode(transactions));
+        String[] transactionArray = decodedTransaction.split("&");
+        List<JsonObject> jsonArray = new ArrayList<>();
+
+        for (String transaction : transactionArray) {
+            //Remove the nounce
+            transaction = transaction.split("%")[0];
+            String decodedText = new String(Base64.getDecoder().decode(transaction));
+            System.out.println("Transaction " + decodedText);
+            JsonObject jsonObject = JsonParser.parseString(decodedText).getAsJsonObject();
+            jsonArray.add(jsonObject);           
+        }
+
+        nodestate.blockChain.add(new Block(jsonArray, nodestate.blockChain.get(nodestate.blockChain.size() - 1).blockHash));
+        manageContracts.executeTx(jsonArray);  
     }
 
     private boolean verifyAuth(String message) throws Exception{

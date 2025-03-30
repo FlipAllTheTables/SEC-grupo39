@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 import com.ist.DepChain.util.Pair;
+import com.ist.DepChain.blocks.Block;;
 
 public class NodeState {
     public Map<Integer, List<Integer>> acks;    //Guardar acknowledges esperados em cada comunicação
@@ -19,11 +20,11 @@ public class NodeState {
     public int bizantineProcesses; 
     public int consensusIndex;
     public PrivateKey privateKey;
-    public List<String> blockChain;
+    public List<Block> blockChain;
     public boolean isBizantine;
     public List<String> valuesToAppend;
     public boolean isClient;
-    public int currentBlockSize;
+    public List<String> currentBlockTransactions;
 
     //TODO Adicionar HashMap<Integer, SecretKey> sharedKeys       HashMap que associa cada comunicação com uma chave partilhada
 
@@ -46,6 +47,7 @@ public class NodeState {
         this.isBizantine = isBizantine;
         this.valuesToAppend = new ArrayList<>();
         this.isClient = false;
+        this.currentBlockTransactions = new ArrayList<>();
     }
 
     public void addConsensusPair(int value1, String value2) {

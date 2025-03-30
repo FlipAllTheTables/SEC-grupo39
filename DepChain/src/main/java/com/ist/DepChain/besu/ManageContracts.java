@@ -1,7 +1,7 @@
 package com.ist.DepChain.besu;
 
-import com.ist.DepChain.*;
-
+import com.ist.DepChain.blocks.Block;
+import com.ist.DepChain.nodes.NodeState;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -24,6 +24,7 @@ import java.io.PrintStream;
 import java.math.BigInteger;
 import java.util.Base64;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class ManageContracts {
@@ -88,7 +89,7 @@ public class ManageContracts {
 
     }
 
-    public void parseGenesisBlock(String filePath) {
+    public void parseGenesisBlock(String filePath, NodeState nodeState) {
         try (FileReader reader = new FileReader(filePath)) {
             // Parse JSON file
             JsonObject genesisBlock = JsonParser.parseReader(reader).getAsJsonObject();
@@ -152,6 +153,7 @@ public class ManageContracts {
             for(Contract contract : contracts.values()) {
                 System.out.println(contract);
             }
+            nodeState.blockChain.add(new Block(accounts, contracts));
             createContracts(contracts.get("ISTCoin"), accounts);
 
         } catch (IOException e) {
@@ -159,21 +161,68 @@ public class ManageContracts {
         }
     }
 
-    public void executeTx(String message){
-        String decodedMessage = Base64.getDecoder().decode(message).toString();
+    public void executeTx(List<JsonObject> transactions){
+        for (JsonObject transaction: transactions){
+            System.out.println("Transaction: " + transaction);
+            boolean isIstCoin = transaction.has("transaction");
+            if(!isIstCoin){
+                String sender = transaction.get("sender").getAsString();
+                String receiver = transaction.get("receiver").getAsString();
+                int value = transaction.get("value").getAsInt();
+                depCoinExchange(accounts.get(sender), accounts.get(receiver), value);
+            }
+            else{
+                String txType = transaction.get("transaction").getAsString();
+                JsonArray args = transaction.get("args").getAsJsonArray();
+                StringBuilder argsString = new StringBuilder();
+                for (JsonElement arg : args) {
+                    argsString.append(arg.getAsString()).append(" ");
+                }
+                String argsString1 = argsString.toString().trim(); 
+                switch (txType) {
+                    case "transfer":
+                        String[] transferArgs = argsString1.split(" ");
+                        String transferSender = transferArgs[1];
+                        String transferReceiver = transferArgs[0];
+                        int transferAmount = Integer.parseInt(transferArgs[2]);
+                        executeTransfer(transferSender, transferReceiver, transferAmount);
+                        break;
+                    
+                    case "transferFrom":
+                        String[] transferFromArgs = argsString1.split(" ");
+                        String transferFromSender = transferFromArgs[1];
+                        String transferFromReceiver = transferFromArgs[0];
+                        int transferFromAmount = Integer.parseInt(transferFromArgs[2]);
+                        executeTransferFrom(transferFromSender, transferFromReceiver, transferFromAmount);
+                        break;
+                    case "approve":
+                        String[] approveArgs = argsString1.split(" ");
+                        String approveSender = approveArgs[1];
+                        String approveSpender = approveArgs[0];
+                        int approveAmount = Integer.parseInt(approveArgs[2]);
+                        executeApprove(approveSender, approveSpender, approveAmount);
+                        break;
+                    case "addToBlackList":
+                        String[] addToBlackListArgs = argsString1.split(" ");
+                        String addToBlackListSender = addToBlackListArgs[0];
+                        executeAddToBlackList(addToBlackListSender);
+                        break;
+                    case "removeFromBlackList":
+                        String[] removeFromBlackListArgs = argsString1.split(" ");
+                        String removeFromBlackListSender = removeFromBlackListArgs[0];
+                        executeRemoveFromBlackList(removeFromBlackListSender);
+                        break;
+                }
 
-        JsonObject jsonObject = JsonParser.parseString(decodedMessage).getAsJsonObject();
-        String sender = jsonObject.get("sender").getAsString();
-        String receiver = jsonObject.get("receiver").getAsString();
-        String value = jsonObject.get("value").getAsString();
-        String data = jsonObject.get("data").getAsString();
-
-        if(Integer.parseInt(value) > 0){
-            depCoinExchange(accounts.get(sender), accounts.get(receiver), Integer.parseInt(value));
+            }
         }
     }
 
     public void depCoinExchange(Account sender, Account receiver, int amount){
+        if (amount < 0) {
+            System.out.println("Invalid amount. Must be greater than or equal 0.");
+            return;
+        }
         if(sender.account.getBalance().compareTo(Wei.fromEth(amount)) < 0) {
             System.out.println("Insufficient balance for transaction.");
             return;
@@ -181,6 +230,12 @@ public class ManageContracts {
         sender.account.decrementBalance(Wei.fromEth(amount));
         receiver.account.incrementBalance(Wei.fromEth(amount));
         System.out.println("Transaction successful. New balances:");
+        BigInteger senderBalanceInWei = sender.account.getBalance().toBigInteger(); // Get the balance in Wei
+        int balanceInEther = senderBalanceInWei.divide(BigInteger.TEN.pow(18)).intValue(); // Convert to Ether as an integer
+        System.out.println("Sender Balance in DepCoin: " + balanceInEther);
+        BigInteger reciverBalanceInWei = receiver.account.getBalance().toBigInteger(); // Get the balance in Wei
+        int recieverBalanceInEther = reciverBalanceInWei.divide(BigInteger.TEN.pow(18)).intValue(); // Convert to Ether as an integer
+        System.out.println("Sender Balance in DepCoin: " + recieverBalanceInEther + "\n");
     }
 
     public void executeTransfer(String sender, String to, int amount){
@@ -188,13 +243,12 @@ public class ManageContracts {
         String paddedAmount = convertIntegerToHex256Bit(amount);
 
         String transferCodeWithArgs = contracts.get("ISTCoin").methodIds.get("transfer") + paddedTo + paddedAmount;
-        System.out.println("Transfer Code with Args: " + transferCodeWithArgs);
         istCoinExecutor.sender(Address.fromHexString(sender));
         istCoinExecutor.callData(Bytes.fromHexString(transferCodeWithArgs));
         istCoinExecutor.execute();
 
         String count = extractBooleanReturnData(byteArrayOutputStreamIst);
-        System.out.println("Output of 'transfer():' " + count);
+        System.out.println("Output of 'transfer():' " + count + "\n");
     }
 
     public void executeTransferFrom(String to, String From, int amount){
@@ -209,7 +263,7 @@ public class ManageContracts {
         istCoinExecutor.execute();
 
         String count = extractBooleanReturnData(byteArrayOutputStreamIst);
-        System.out.println("Output of 'transferFrom():' " + count);
+        System.out.println("Output of 'transferFrom():' " + count + "\n");
     }
 
     public void executeAddToBlackList(String address){
@@ -221,7 +275,7 @@ public class ManageContracts {
         istCoinExecutor.execute();
 
         String count = extractBooleanReturnData(byteArrayOutputStreamIst);
-        System.out.println("AddtoBlackList():' " + count);
+        System.out.println("AddtoBlackList():' " + count + "\n");
     }
 
     public void executeRemoveFromBlackList(String address){
@@ -233,7 +287,7 @@ public class ManageContracts {
         istCoinExecutor.execute();
 
         String count = extractBooleanReturnData(byteArrayOutputStreamIst);
-        System.out.println("RemoveFromBlackList():' " + count);
+        System.out.println("RemoveFromBlackList():' " + count + "\n");
     }
 
     public void executeIsBlackListed(String address){
@@ -245,7 +299,7 @@ public class ManageContracts {
         istCoinExecutor.execute();
 
         String count = extractBooleanReturnData(byteArrayOutputStreamIst);
-        System.out.println("isBlackListed():' " + count);
+        System.out.println("isBlackListed():' " + count + "\n");
     }
 
     public void executeApprove(String sender, String spender, int amount){
@@ -259,7 +313,7 @@ public class ManageContracts {
         istCoinExecutor.execute();
 
         String count = extractBooleanReturnData(byteArrayOutputStreamIst);
-        System.out.println("Output of 'approve():' " + count);
+        System.out.println("Output of 'approve():' " + count + "\n");
 
     }
 

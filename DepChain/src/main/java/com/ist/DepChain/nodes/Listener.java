@@ -1,7 +1,10 @@
 package com.ist.DepChain.nodes;
 
+import java.lang.reflect.Array;
 import java.net.DatagramPacket;
 import java.util.ArrayList;
+import java.util.Base64;
+import java.util.List;
 
 import com.ist.DepChain.links.AuthenticatedPerfectLink;
 
@@ -85,19 +88,30 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
                             if (!nodestate.valuesToAppend.contains(value)){
                                 System.out.println("Value: " + value + " added to the list of values to append");
                                 nodestate.valuesToAppend.add(value);
+                                nodestate.currentBlockTransactions.add(value);
                             }
                             else{
                                 System.out.println("Value: " + value + " already in the list of values to append");
                                 return;
                             }
-                            int consensusIndex = ++nodestate.consensusIndex;
-                            nodestate.val.add(consensusIndex, value);
-                            nodestate.valts.add(consensusIndex, 0);
-                            bizantineConsensus.read(consensusIndex);
+                            if(nodestate.currentBlockTransactions.size() == 10){
+                                ArrayList<String> transactions = new ArrayList<>();
+                                //Deep copy of the list
+                                for (String transaction : nodestate.currentBlockTransactions) {
+                                    transactions.add(new String(transaction));
+                                }
+                                nodestate.currentBlockTransactions.clear();
+                                int consensusIndex = ++nodestate.consensusIndex;
+                                String state = prepareState(transactions);
+                                System.out.println("State: " + state);
+                                nodestate.val.add(consensusIndex, state);
+                                nodestate.valts.add(consensusIndex, 0);
+                                bizantineConsensus.read(consensusIndex);
+                            }
                         }
                     }
                     else{
-                        String init = "INNIT|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + value;
+                        String init = "ISTTX|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + value;
                         new Thread(() -> {
                             try {
                                 apLink.send(init, BASE_PORT);
@@ -108,7 +122,7 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
                     }                    
                     break;
 
-                    case "DEPTX":
+                case "DEPTX":
                     System.out.println("Received message from " + senderId + ": " + message);
                     try {
                         //System.out.println("Sending Acknoledge to message: " + seqNum + " from sender: " + senderId);
@@ -124,19 +138,30 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
                             if (!nodestate.valuesToAppend.contains(value1)){
                                 System.out.println("Value: " + value1 + " added to the list of values to append");
                                 nodestate.valuesToAppend.add(value1);
+                                nodestate.currentBlockTransactions.add(value1);
                             }
                             else{
                                 System.out.println("Value: " + value1 + " already in the list of values to append");
                                 return;
                             }
-                            int consensusIndex = ++nodestate.consensusIndex;
-                            nodestate.val.add(consensusIndex, value1);
-                            nodestate.valts.add(consensusIndex, 0);
-                            bizantineConsensus.read(consensusIndex);
+                            if(nodestate.currentBlockTransactions.size() == 10){
+                                ArrayList<String> transactions = new ArrayList<>();
+                                //Deep copy of the list
+                                for (String transaction : nodestate.currentBlockTransactions) {
+                                    transactions.add(new String(transaction));
+                                }
+                                nodestate.currentBlockTransactions.clear();
+                                int consensusIndex = ++nodestate.consensusIndex;
+                                String state = prepareState(transactions);
+                                System.out.println("State: " + state);
+                                nodestate.val.add(consensusIndex, state);
+                                nodestate.valts.add(consensusIndex, 0);
+                                bizantineConsensus.read(consensusIndex);
+                            }
                         }
                     }
                     else{
-                        String init = "INNIT|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + value1;
+                        String init = "DEPTX|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + value1;
                         new Thread(() -> {
                             try {
                                 apLink.send(init, BASE_PORT);
@@ -252,6 +277,16 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
                     System.out.println("No command found");
                     break;
             }
+        }
+
+        //Turns the list of transactions into a string separated by "&" and encodes it
+        private String prepareState(List<String> encodedTransactions) {
+            StringBuilder state = new StringBuilder();
+            for (String transaction : encodedTransactions) {
+                state.append(transaction).append("&");
+            }
+            System.out.println("State: " + state.toString());
+            return Base64.getEncoder().encodeToString(state.toString().getBytes());
         }
 
     }
