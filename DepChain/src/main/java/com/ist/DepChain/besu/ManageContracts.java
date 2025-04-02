@@ -124,6 +124,7 @@ public class ManageContracts {
                     methodIds.put("addToBlackList", accountData.get("addToBlackList").getAsString());
                     methodIds.put("removeFromBlackList", accountData.get("removeFromBlackList").getAsString());
                     methodIds.put("isBlacklisted", accountData.get("isBlackListed").getAsString());
+                    methodIds.put("approve", accountData.get("approve").getAsString());
                     Contract contract = new Contract(
                             entry.getKey(),
                             address,
@@ -165,12 +166,14 @@ public class ManageContracts {
         for (JsonObject transaction: transactions){
             System.out.println("Transaction: " + transaction);
             boolean isIstCoin = transaction.has("transaction");
+            //DepCoin transaction
             if(!isIstCoin){
                 String sender = transaction.get("sender").getAsString();
                 String receiver = transaction.get("receiver").getAsString();
                 int value = transaction.get("value").getAsInt();
                 depCoinExchange(accounts.get(sender), accounts.get(receiver), value);
             }
+            //ISTCoin transaction
             else{
                 String txType = transaction.get("transaction").getAsString();
                 JsonArray args = transaction.get("args").getAsJsonArray();
@@ -195,6 +198,7 @@ public class ManageContracts {
                         int transferFromAmount = Integer.parseInt(transferFromArgs[2]);
                         executeTransferFrom(transferFromSender, transferFromReceiver, transferFromAmount);
                         break;
+
                     case "approve":
                         String[] approveArgs = argsString1.split(" ");
                         String approveSender = approveArgs[1];
@@ -202,11 +206,13 @@ public class ManageContracts {
                         int approveAmount = Integer.parseInt(approveArgs[2]);
                         executeApprove(approveSender, approveSpender, approveAmount);
                         break;
+
                     case "addToBlackList":
                         String[] addToBlackListArgs = argsString1.split(" ");
                         String addToBlackListSender = addToBlackListArgs[0];
                         executeAddToBlackList(addToBlackListSender);
                         break;
+
                     case "removeFromBlackList":
                         String[] removeFromBlackListArgs = argsString1.split(" ");
                         String removeFromBlackListSender = removeFromBlackListArgs[0];
