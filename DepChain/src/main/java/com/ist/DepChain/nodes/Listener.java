@@ -1,10 +1,17 @@
 package com.ist.DepChain.nodes;
 
-import java.lang.reflect.Array;
 import java.net.DatagramPacket;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.security.KeyFactory;
+import java.security.PublicKey;
+import java.security.Signature;
+import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
+
+import javax.crypto.spec.SecretKeySpec;
 
 import com.ist.DepChain.links.AuthenticatedPerfectLink;
 
@@ -17,6 +24,7 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
         public NodeState nodestate;
         private static final int BASE_PORT = 5000;
         private BizantineConsensus bizantineConsensus;
+        private final String signAlgo = "SHA256withRSA";
 
         public Listener(AuthenticatedPerfectLink apLink, NodeState nodeState, BizantineConsensus bizantineConsensus) {
             this.apLink = apLink;
@@ -84,6 +92,17 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
                     String value = message.split("\\|",6)[3];
 
                     if (nodestate.myId == 0){ //If im the leader
+                        String clientSign;
+                        if(Integer.parseInt(senderId) >= nodestate.numNodes) {
+                            clientSign = message.split("\\|",6)[4];
+                        }
+                        else{
+                            String nodeMessage = message.split("\\|",6)[3];
+                            if(!verifyAuth(nodeMessage)){
+                                System.out.println("Client message forged. Ignoring message");
+                                return;
+                            }
+                        }
                         synchronized(nodestate.valuesToAppend){
                             if (!nodestate.valuesToAppend.contains(value)){
                                 System.out.println("Value: " + value + " added to the list of values to append");
@@ -111,7 +130,8 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
                         }
                     }
                     else{
-                        String init = "ISTTX|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + value;
+                        String clientSign = message.split("\\|",6)[4];
+                        String init = "ISTTX|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + message.replaceAll("\\|", "$");
                         new Thread(() -> {
                             try {
                                 apLink.send(init, BASE_PORT);
@@ -131,17 +151,27 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
                         e.printStackTrace();
                     }
 
-                    String value1 = message.split("\\|",6)[3];
-
+                    String clientTransaction = message.split("\\|",6)[3];
                     if (nodestate.myId == 0){ //If im the leader
+                        String clientSign;
+                        if(Integer.parseInt(senderId) >= nodestate.numNodes) {
+                            clientSign = message.split("\\|",6)[4];
+                        }
+                        else{
+                            String nodeMessage = message.split("\\|",6)[3];
+                            if(!verifyAuth(nodeMessage)){
+                                System.out.println("Client message forged. Ignoring message");
+                                return;
+                            }
+                        }
                         synchronized(nodestate.valuesToAppend){
-                            if (!nodestate.valuesToAppend.contains(value1)){
-                                System.out.println("Value: " + value1 + " added to the list of values to append");
-                                nodestate.valuesToAppend.add(value1);
-                                nodestate.currentBlockTransactions.add(value1);
+                            if (!nodestate.valuesToAppend.contains(clientTransaction)){
+                                System.out.println("Value: " + clientTransaction + " added to the list of values to append");
+                                nodestate.valuesToAppend.add(clientTransaction);
+                                nodestate.currentBlockTransactions.add(clientTransaction);
                             }
                             else{
-                                System.out.println("Value: " + value1 + " already in the list of values to append");
+                                System.out.println("Value: " + clientTransaction + " already in the list of values to append");
                                 return;
                             }
                             if(nodestate.currentBlockTransactions.size() == 10){
@@ -161,7 +191,9 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
                         }
                     }
                     else{
-                        String init = "DEPTX|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + value1;
+                        //Rellaying the massage to the leader
+                        String clientSign = message.split("\\|",6)[4];
+                        String init = "DEPTX|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + message.replaceAll("\\|", "$");
                         new Thread(() -> {
                             try {
                                 apLink.send(init, BASE_PORT);
@@ -264,7 +296,9 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
                     break;
 
                 case "ESTABLISH":
+                    String key = message.split("\\|",6)[3];
                     System.out.println("Received message from " + senderId + ": " + message);
+                    nodestate.sharedKeys.put(Integer.parseInt(senderId), new SecretKeySpec(key.getBytes(), "AES"));
                     try {
                         apLink.sendAck(Integer.valueOf(seqNum), Integer.valueOf(senderId));
                         nodestate.acks.put(Integer.valueOf(senderId), new ArrayList<>());
@@ -287,6 +321,25 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
             }
             System.out.println("State: " + state.toString());
             return Base64.getEncoder().encodeToString(state.toString().getBytes());
+        }
+
+        private boolean verifyAuth(String message) throws Exception{
+            String[] splitMsg = message.split("\\$", 6);
+            String sender = message.split("\\$", 6)[1];
+            String signature = message.split("\\$", 6)[5];
+            StringBuilder checkSig = new StringBuilder(splitMsg[0] + "$" + splitMsg[1] + "$" + splitMsg[2] + "$" + splitMsg[3] + "$" + splitMsg[4]);
+    
+            Signature signMaker = Signature.getInstance(signAlgo);
+            PublicKey pubKey = readPublicKey("src/main/java/com/ist/DepChain/keys/" + sender + "_pub.key");
+            signMaker.initVerify(pubKey);
+            signMaker.update(checkSig.toString().getBytes());
+    
+            return signMaker.verify(Base64.getDecoder().decode(signature.getBytes()));
+        }
+        private PublicKey readPublicKey(String filename) throws Exception {
+            byte[] keyBytes = Files.readAllBytes(Paths.get(filename)); // Read the binary key file
+            KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+            return keyFactory.generatePublic(new X509EncodedKeySpec(keyBytes));
         }
 
     }

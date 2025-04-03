@@ -8,6 +8,11 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.Base64;
+
+import java.security.*;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 
 public class CreateGenesisBlock {
 
@@ -30,12 +35,27 @@ public class CreateGenesisBlock {
         JsonObject ownerAccount = new JsonObject();
         ownerAccount.addProperty("balance", "100000"); // balance in the smallest unit (e.g., wei for Ether)
         ownerAccount.addProperty("address", "0000000000000000000000000000000000000001");
+        String encodedPubKey = "";
+        try{
+            encodedPubKey = generateRSAKeys("Owner");
+            ownerAccount.addProperty("Public Key", encodedPubKey);
+        } catch (Exception e) {
+            System.out.println("Error generating keys for Owner: " + e.getMessage());
+        }
         state.add("Owner Account", ownerAccount);
+
 
         for(int i=0; i<3; i++){
             JsonObject clientAccount = new JsonObject();
             clientAccount.addProperty("balance", "100000");
             clientAccount.addProperty("address", "000000000000000000000000000000000000000"+(i+2));
+            try{
+                encodedPubKey = generateRSAKeys("Client_"+(i+1));
+            }
+            catch (Exception e){
+                System.out.println("Error generating keys for Client "+(i+1)+": "+e.getMessage());
+            }
+            clientAccount.addProperty("Public Key", encodedPubKey);
             state.add("Client Account "+(i+1), clientAccount);
         }
 
@@ -73,5 +93,27 @@ public class CreateGenesisBlock {
         } catch (IOException e) {
             System.err.println("Error writing to file: " + e.getMessage());
         }
+    }
+
+    private static String generateRSAKeys(String clientName) throws GeneralSecurityException, IOException {
+        System.out.println("Generating RSA keys for client " + clientName);
+        KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA");
+        keyGen.initialize(4096);
+        KeyPair keys = keyGen.generateKeyPair();
+
+        PrivateKey privKey = keys.getPrivate();
+        byte[] privKeyEncoded = privKey.getEncoded();
+
+        try (FileOutputStream privFos = new FileOutputStream("src/main/java/com/ist/DepChain/keys/" + clientName + "_priv.key")) {
+            privFos.write(privKeyEncoded);
+        }
+
+        PublicKey pubKey = keys.getPublic();
+        byte[] pubKeyEncoded = pubKey.getEncoded();
+
+        try (FileOutputStream pubFos = new FileOutputStream("src/main/java/com/ist/DepChain/keys/" + clientName + "_pub.key")) {
+            pubFos.write(pubKeyEncoded);
+        } 
+        return Base64.getEncoder().encodeToString(pubKeyEncoded);     
     }
 }

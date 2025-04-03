@@ -4,6 +4,10 @@ import java.security.PrivateKey;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
+
 import java.util.HashMap;
 import com.ist.DepChain.util.Pair;
 import com.ist.DepChain.blocks.Block;;
@@ -25,6 +29,7 @@ public class NodeState {
     public List<String> valuesToAppend;
     public boolean isClient;
     public List<String> currentBlockTransactions;
+    public HashMap<Integer, SecretKeySpec> sharedKeys;
 
     //TODO Adicionar HashMap<Integer, SecretKey> sharedKeys       HashMap que associa cada comunicação com uma chave partilhada
 
@@ -48,6 +53,7 @@ public class NodeState {
         this.valuesToAppend = new ArrayList<>();
         this.isClient = false;
         this.currentBlockTransactions = new ArrayList<>();
+        this.sharedKeys = new HashMap<>();
     }
 
     public void addConsensusPair(int value1, String value2) {

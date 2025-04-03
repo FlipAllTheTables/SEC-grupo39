@@ -22,6 +22,9 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.math.BigInteger;
+import java.security.KeyFactory;
+import java.security.PublicKey;
+import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
@@ -89,7 +92,7 @@ public class ManageContracts {
 
     }
 
-    public void parseGenesisBlock(String filePath, NodeState nodeState) {
+    public HashMap<String,String> parseGenesisBlock(String filePath, NodeState nodeState) {
         try (FileReader reader = new FileReader(filePath)) {
             // Parse JSON file
             JsonObject genesisBlock = JsonParser.parseReader(reader).getAsJsonObject();
@@ -138,9 +141,18 @@ public class ManageContracts {
                     System.out.println(contract);
                 }
                 else{
+                    String pubKey = accountData.get("Public Key").getAsString();
+                    PublicKey publicKey = null;
+                    try{
+                        publicKey = decodePublicKey(pubKey);
+                    }
+                    catch (Exception e){
+                        System.out.println("Error decoding public key: " + e.getMessage());
+                    }
                     Account account = new Account(
                             address,
-                            accountData.get("balance").getAsString()
+                            accountData.get("balance").getAsString(),
+                            publicKey
                     );
                     System.out.println(account);
                     accounts.put(address, account);
@@ -160,6 +172,17 @@ public class ManageContracts {
         } catch (IOException e) {
             System.err.println("Error reading genesis block file: " + e.getMessage());
         }
+        return contracts.get("ISTCoin").methodIds;
+    }
+
+    public PublicKey decodePublicKey(String encodedKey) throws Exception {
+        // Decode the Base64 string into a byte array
+        byte[] decodedKey = Base64.getDecoder().decode(encodedKey);
+
+        // Reconstruct the public key using a KeyFactory
+        KeyFactory keyFactory = KeyFactory.getInstance("RSA"); // Replace "RSA" with your algorithm
+        X509EncodedKeySpec keySpec = new X509EncodedKeySpec(decodedKey);
+        return keyFactory.generatePublic(keySpec);
     }
 
     public void executeTx(List<JsonObject> transactions){

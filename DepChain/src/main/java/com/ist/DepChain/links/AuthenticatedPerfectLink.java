@@ -30,7 +30,6 @@ public class AuthenticatedPerfectLink {
     private PrivateKey privKey;
     private NodeState nodeState;
     private static final int BASE_PORT = 5000;
-    private static final String ALGORITHM = "AES";
 
     public AuthenticatedPerfectLink(DatagramSocket socket, NodeState nodeState, PrivateKey privKey) throws SocketException {
         stubbornLink = new StubbornLink(socket, nodeState);
@@ -43,7 +42,7 @@ public class AuthenticatedPerfectLink {
         String command = m.split("\\|", 5)[0];
         String signature;
 
-        if(command.equals("ESTABLISH")){
+        if(command.equals("ESTABLISH") || command.equals("STATE") || command.equals("DEPTX") || command.equals("ISTTX")){
             signature = authenticateAsym(m);
         }
         else{
@@ -74,42 +73,12 @@ public class AuthenticatedPerfectLink {
         return new String(Base64.getEncoder().encode(signature));
     }
 
-    private String authenticateSym(String m, int receiver) throws Exception {
-        SecretKeySpec keySpec = new SecretKeySpec(readSymKey(nodeState.myId, receiver).getBytes(), ALGORITHM);
+    private String authenticateSym(String m, int otherNode) throws Exception {
         Mac mac = Mac.getInstance("HmacSHA256");
-        mac.init(keySpec);
+        mac.init(nodeState.sharedKeys.get(otherNode));
         System.out.println("Signing message: " + m);
         byte[] hmac = mac.doFinal(m.getBytes());
         return Base64.getEncoder().encodeToString(hmac);
-    }
-
-    private String readSymKey(int sender, int receiver) throws Exception {
-        byte[] encodedKey;
-
-        if(sender > receiver){
-            File file = new File("src/main/java/com/ist/DepChain/keys/" + sender + "-" + receiver + "_sym.key");
-            if (!file.exists()) {
-                throw new IOException("Key file not found!" + file.getAbsolutePath());
-            }
-            try (FileInputStream fis = new FileInputStream("src/main/java/com/ist/DepChain/keys/" + sender + "-" + receiver + "_sym.key")) {
-                encodedKey = fis.readAllBytes();
-            }
-            System.out.println("Just read key: " + "src/main/java/com/ist/DepChain/keys/" + sender + "-" + receiver + "_sym.key");
-        }
-        else{
-            File file = new File("src/main/java/com/ist/DepChain/keys/" + receiver + "-" + sender + "_sym.key");
-            if (!file.exists()) {
-                throw new IOException("Key file not found!" + file.getAbsolutePath());
-            }
-            try (FileInputStream fis = new FileInputStream("src/main/java/com/ist/DepChain/keys/" + receiver + "-" + sender + "_sym.key")) {
-                encodedKey = fis.readAllBytes();
-            }
-            System.out.println("Just read key: " + "src/main/java/com/ist/DepChain/keys/" + receiver + "-" + sender + "_sym.key");
-        }
-
-        System.out.println("Encoded key: " + new String(encodedKey));
-        // Decode Base64 key
-        return Base64.getDecoder().decode(new String(encodedKey)).toString();
     }
 
     /**
@@ -139,7 +108,7 @@ public class AuthenticatedPerfectLink {
             .append(seqNum).append("|").append(consensusRun).append("|").append(message);
         }
 
-        if(command.equals("ESTABLISH")){
+        if(command.equals("ESTABLISH") || command.equals("STATE") || command.equals("DEPTX") || command.equals("ISTTX")){
             Signature signMaker = Signature.getInstance(signAlgo);
             PublicKey pubKey = readPublicKey("src/main/java/com/ist/DepChain/keys/" + sender + "_pub.key");
             signMaker.initVerify(pubKey);

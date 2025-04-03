@@ -8,6 +8,7 @@ import java.security.KeyPairGenerator;
 import java.security.PrivateKey;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.HashMap;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.security.PublicKey;
@@ -22,6 +23,7 @@ import java.security.spec.X509EncodedKeySpec;
 
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 import javax.xml.crypto.Data;
 
 import com.ist.DepChain.client.Client;
@@ -39,6 +41,7 @@ public class NodeStarter {
     private static final String ALGORITHM = "AES";
     private static final int KEY_SIZE = 256;
     private static final String KEY_FILE = "src/main/java/com/ist/DepChain/keys/";
+    private static HashMap<String, String> methodIds;
     
     public static void main( String[] args ) throws Exception {
         if (args.length != 4) {
@@ -57,8 +60,9 @@ public class NodeStarter {
         PrivateKey privKey = (PrivateKey) readRSA("src/main/java/com/ist/DepChain/keys/" + id + "_priv.key", "priv");
         nodestate.privateKey = privKey;
 
+        methodIds = new HashMap<>();
         ManageContracts manageContracts = new ManageContracts();
-        manageContracts.parseGenesisBlock("src/main/java/com/ist/DepChain/genesis_block/genesis_block.json", nodestate);
+        methodIds = manageContracts.parseGenesisBlock("src/main/java/com/ist/DepChain/genesis_block/genesis_block.json", nodestate);
 
         // AuthenticatedPerfectLink used to communicate with other nodes
         DatagramSocket socket = new DatagramSocket(id + BASE_PORT);
@@ -66,7 +70,7 @@ public class NodeStarter {
 
         if (args[3].equals("1")) {
             nodestate.isClient = true;
-            new Client(apLink, nodestate);
+            new Client(apLink, nodestate, methodIds);
         }
 
         BizantineConsensus bizantineConsensus = new BizantineConsensus(nodestate, apLink, manageContracts);
@@ -109,17 +113,7 @@ public class NodeStarter {
         // Encode key as Base64 (optional, for readability)
         String encodedKey = Base64.getEncoder().encodeToString(secretKey.getEncoded());
 
-        // Save to file
-        if(id > node){
-            try (FileOutputStream fos = new FileOutputStream(KEY_FILE + id + "-" + node + "_sym.key")) {
-                fos.write(encodedKey.getBytes());
-            }
-        }
-        else{
-            try (FileOutputStream fos = new FileOutputStream(KEY_FILE + node + "-" + id + "_sym.key")) {
-                fos.write(encodedKey.getBytes());
-            }
-        }
+        nodestate.sharedKeys.put(node, new SecretKeySpec(encodedKey.getBytes(), "AES"));
 
         System.out.println("Key saved to " + KEY_FILE);
         return encodedKey;

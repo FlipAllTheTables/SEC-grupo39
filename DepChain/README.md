@@ -19,3 +19,6 @@ Where:
  In the folder Tests, there are two python scripts that simulate two different scenarios:
   - The first consists in 5 nodes that run the algorithm, with no bizantine nodes. To run this scenario, just open the `/Tests` directory and run scenario1.py (This only works in a wsl environment where you must have maven installed). This will automatically open 6 terminals. On the last terminal simple write `APPEND` followed by a random string to write somethin on the blockchain. Then to read what has been written in the blockchain simply write `READALL`.
   - The second scenario is similar two the first but there are now 6 nodes that run the algorithm and two of these nodes are bizantine. Following the same process as before, you will obtain similar results even with bizantine nodes.
+
+  javac -cp "jars/*" -d bin CreateGenesisBlock.java
+  java -cp "bin:jars/*" com.ist.DepChain.besu.CreateGenesisBlock

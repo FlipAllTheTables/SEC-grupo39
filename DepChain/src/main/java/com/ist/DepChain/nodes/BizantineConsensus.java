@@ -13,7 +13,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
-import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.ist.DepChain.besu.ManageContracts;
@@ -31,7 +30,6 @@ public class BizantineConsensus {
     private List<Map<String, Integer>> countedAccepts;
     private List<Boolean> consenusReached;
     private List<Boolean> alreadyWritten;
-    private List<List<String>> transactionLists;
     ManageContracts manageContracts;
 
     public BizantineConsensus(NodeState nodeState, AuthenticatedPerfectLink apLink, ManageContracts manageContracts) {
@@ -42,7 +40,6 @@ public class BizantineConsensus {
         countedAccepts = new ArrayList<>();
         consenusReached = new ArrayList<>();
         alreadyWritten = new ArrayList<>();
-        transactionLists = new ArrayList<>();
         for (int i = 0; i < 100; i++) {
             storedMessages.add(new ArrayList<>());
             countedWrites.add(new HashMap<>());
