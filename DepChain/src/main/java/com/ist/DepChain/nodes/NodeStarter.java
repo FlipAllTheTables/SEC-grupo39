@@ -20,6 +20,8 @@ import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 
+import javax.crypto.KeyGenerator;
+import javax.crypto.SecretKey;
 import javax.xml.crypto.Data;
 
 import com.ist.DepChain.client.Client;
@@ -34,6 +36,9 @@ public class NodeStarter {
     private static final int BASE_PORT = 5000;
     private static int id;
     public static NodeState nodestate;
+    private static final String ALGORITHM = "AES";
+    private static final int KEY_SIZE = 256;
+    private static final String KEY_FILE = "src/main/java/com/ist/DepChain/keys/";
     
     public static void main( String[] args ) throws Exception {
         if (args.length != 4) {
@@ -75,8 +80,9 @@ public class NodeStarter {
             int index = i;
             new Thread(() -> {
                 try{
+                    String encodedKey = generateSymKey(index);
                     nodestate.acks.put(index, new ArrayList<>()); // Create an association between node and awaited acknowledgements
-                    String message = "ESTABLISH|" + id + "|" + nodestate.seqNum + "|establish";
+                    String message = "ESTABLISH|" + id + "|" + nodestate.seqNum + "|" + encodedKey;
                     apLink.send(message, BASE_PORT + index);
                 }
                 catch (Exception e) {
@@ -92,6 +98,31 @@ public class NodeStarter {
             commandThread.start();
         }
 
+    }
+
+    public static String generateSymKey(int node) throws NoSuchAlgorithmException, IOException {
+        // Generate key
+        KeyGenerator keyGenerator = KeyGenerator.getInstance(ALGORITHM);
+        keyGenerator.init(KEY_SIZE);
+        SecretKey secretKey = keyGenerator.generateKey();
+
+        // Encode key as Base64 (optional, for readability)
+        String encodedKey = Base64.getEncoder().encodeToString(secretKey.getEncoded());
+
+        // Save to file
+        if(id > node){
+            try (FileOutputStream fos = new FileOutputStream(KEY_FILE + id + "-" + node + "_sym.key")) {
+                fos.write(encodedKey.getBytes());
+            }
+        }
+        else{
+            try (FileOutputStream fos = new FileOutputStream(KEY_FILE + node + "-" + id + "_sym.key")) {
+                fos.write(encodedKey.getBytes());
+            }
+        }
+
+        System.out.println("Key saved to " + KEY_FILE);
+        return encodedKey;
     }
 
     private static void generateRSAKeys() throws GeneralSecurityException, IOException {
