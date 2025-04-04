@@ -12,7 +12,6 @@ import java.util.ArrayList;
 import java.util.Base64;
 
 import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
 
 import java.security.KeyFactory;
 import java.security.PrivateKey;
@@ -42,11 +41,12 @@ public class AuthenticatedPerfectLink {
         String command = m.split("\\|", 5)[0];
         String signature;
 
-        if(command.equals("ESTABLISH") || command.equals("STATE") || command.equals("DEPTX") || command.equals("ISTTX")){
+        if(command.equals("ESTABLISH") || command.equals("STATE") || command.equals("TX")){
             signature = authenticateAsym(m);
         }
         else{
             signature = authenticateSym(m, port - BASE_PORT);
+            System.out.println("Signature l49 APL: " + signature);
         }
         stubbornLink.send(m + "|" + signature, port); // add signature to message m
     }
@@ -78,7 +78,7 @@ public class AuthenticatedPerfectLink {
         mac.init(nodeState.sharedKeys.get(otherNode));
         System.out.println("Signing message: " + m);
         byte[] hmac = mac.doFinal(m.getBytes());
-        return Base64.getEncoder().encodeToString(hmac);
+        return new String(Base64.getEncoder().encodeToString(hmac));
     }
 
     /**
@@ -86,6 +86,7 @@ public class AuthenticatedPerfectLink {
      * 
      */
     private boolean verifyAuth(DatagramPacket dp) throws Exception{
+        System.out.println("Verifying message: " + new String(dp.getData(), 0, dp.getLength()));
         String packeString = new String(dp.getData(), 0, dp.getLength());
         String command = packeString.split("\\|", 5)[0];
         String sender = packeString.split("\\|", 5)[1];
@@ -94,7 +95,7 @@ public class AuthenticatedPerfectLink {
         String signature;
         StringBuilder content = new StringBuilder();
 
-        if (command.equals("APPEND") || command.equals("INNIT") || command.equals("ACK") || command.equals("READALL") || command.equals("INFO") || command.equals("TEST") || command.equals("ESTABLISH") || command.equals("ISTTX") || command.equals("DEPTX")) {
+        if (command.equals("APPEND") || command.equals("INNIT") || command.equals("ACK") || command.equals("READALL") || command.equals("INFO") || command.equals("TEST") || command.equals("ESTABLISH") || command.equals("TX")) {
             message = packeString.split("\\|", 5)[3];
             signature = packeString.split("\\|", 5)[4];
             content.append(command).append("|").append(sender).append("|")
@@ -108,7 +109,7 @@ public class AuthenticatedPerfectLink {
             .append(seqNum).append("|").append(consensusRun).append("|").append(message);
         }
 
-        if(command.equals("ESTABLISH") || command.equals("STATE") || command.equals("DEPTX") || command.equals("ISTTX")){
+        if(command.equals("ESTABLISH") || command.equals("STATE") || command.equals("TX")){
             Signature signMaker = Signature.getInstance(signAlgo);
             PublicKey pubKey = readPublicKey("src/main/java/com/ist/DepChain/keys/" + sender + "_pub.key");
             signMaker.initVerify(pubKey);

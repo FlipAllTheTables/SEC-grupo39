@@ -27,7 +27,7 @@ public class FairLossLink {
     }
 
     public DatagramPacket deliver() throws Exception {
-        byte[] buf = new byte[10000];
+        byte[] buf = new byte[50000];
         DatagramPacket packet = new DatagramPacket(buf, buf.length);
         socket.receive(packet);
         return packet;

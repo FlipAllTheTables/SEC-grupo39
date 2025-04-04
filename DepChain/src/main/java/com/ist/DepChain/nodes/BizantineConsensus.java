@@ -316,7 +316,7 @@ public class BizantineConsensus {
         }
 
         nodestate.blockChain.add(new Block(jsonArray, nodestate.blockChain.get(nodestate.blockChain.size() - 1).blockHash));
-        manageContracts.executeTx(jsonArray);  
+        manageContracts.processTransactions(jsonArray);  
     }
 
     private boolean verifyAuth(String message) throws Exception{

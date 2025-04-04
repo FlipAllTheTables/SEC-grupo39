@@ -80,7 +80,7 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
                     }
                     break;
 
-                case "ISTTX":
+                case "TX":
                     System.out.println("Received message from " + senderId + ": " + message);
                     try {
                         //System.out.println("Sending Acknoledge to message: " + seqNum + " from sender: " + senderId);
@@ -92,11 +92,7 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
                     String value = message.split("\\|",6)[3];
 
                     if (nodestate.myId == 0){ //If im the leader
-                        String clientSign;
-                        if(Integer.parseInt(senderId) >= nodestate.numNodes) {
-                            clientSign = message.split("\\|",6)[4];
-                        }
-                        else{
+                        if(!(Integer.parseInt(senderId) >= nodestate.numNodes)) {
                             String nodeMessage = message.split("\\|",6)[3];
                             if(!verifyAuth(nodeMessage)){
                                 System.out.println("Client message forged. Ignoring message");
@@ -130,70 +126,7 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
                         }
                     }
                     else{
-                        String clientSign = message.split("\\|",6)[4];
-                        String init = "ISTTX|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + message.replaceAll("\\|", "$");
-                        new Thread(() -> {
-                            try {
-                                apLink.send(init, BASE_PORT);
-                            } catch (Exception e) {
-                                e.printStackTrace();
-                            }
-                        }).start();
-                    }                    
-                    break;
-
-                case "DEPTX":
-                    System.out.println("Received message from " + senderId + ": " + message);
-                    try {
-                        //System.out.println("Sending Acknoledge to message: " + seqNum + " from sender: " + senderId);
-                        apLink.sendAck(Integer.valueOf(seqNum), Integer.valueOf(senderId));
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-
-                    String clientTransaction = message.split("\\|",6)[3];
-                    if (nodestate.myId == 0){ //If im the leader
-                        String clientSign;
-                        if(Integer.parseInt(senderId) >= nodestate.numNodes) {
-                            clientSign = message.split("\\|",6)[4];
-                        }
-                        else{
-                            String nodeMessage = message.split("\\|",6)[3];
-                            if(!verifyAuth(nodeMessage)){
-                                System.out.println("Client message forged. Ignoring message");
-                                return;
-                            }
-                        }
-                        synchronized(nodestate.valuesToAppend){
-                            if (!nodestate.valuesToAppend.contains(clientTransaction)){
-                                System.out.println("Value: " + clientTransaction + " added to the list of values to append");
-                                nodestate.valuesToAppend.add(clientTransaction);
-                                nodestate.currentBlockTransactions.add(clientTransaction);
-                            }
-                            else{
-                                System.out.println("Value: " + clientTransaction + " already in the list of values to append");
-                                return;
-                            }
-                            if(nodestate.currentBlockTransactions.size() == 10){
-                                ArrayList<String> transactions = new ArrayList<>();
-                                //Deep copy of the list
-                                for (String transaction : nodestate.currentBlockTransactions) {
-                                    transactions.add(new String(transaction));
-                                }
-                                nodestate.currentBlockTransactions.clear();
-                                int consensusIndex = ++nodestate.consensusIndex;
-                                String state = prepareState(transactions);
-                                System.out.println("State: " + state);
-                                nodestate.val.add(consensusIndex, state);
-                                nodestate.valts.add(consensusIndex, 0);
-                                bizantineConsensus.read(consensusIndex);
-                            }
-                        }
-                    }
-                    else{
-                        //Rellaying the massage to the leader
-                        String clientSign = message.split("\\|",6)[4];
-                        String init = "DEPTX|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + message.replaceAll("\\|", "$");
+                        String init = "TX|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + message.replaceAll("\\|", "\\$");
                         new Thread(() -> {
                             try {
                                 apLink.send(init, BASE_PORT);
@@ -319,15 +252,16 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
             for (String transaction : encodedTransactions) {
                 state.append(transaction).append("&");
             }
-            System.out.println("State: " + state.toString());
             return Base64.getEncoder().encodeToString(state.toString().getBytes());
         }
 
         private boolean verifyAuth(String message) throws Exception{
             String[] splitMsg = message.split("\\$", 6);
             String sender = message.split("\\$", 6)[1];
-            String signature = message.split("\\$", 6)[5];
-            StringBuilder checkSig = new StringBuilder(splitMsg[0] + "$" + splitMsg[1] + "$" + splitMsg[2] + "$" + splitMsg[3] + "$" + splitMsg[4]);
+            String signature = message.split("\\$", 6)[4];
+            System.out.println("Signature: " + signature);
+            StringBuilder checkSig = new StringBuilder(splitMsg[0] + "|" + splitMsg[1] + "|" + splitMsg[2] + "|" + splitMsg[3]);
+            System.out.println("CheckSig: " + checkSig);
     
             Signature signMaker = Signature.getInstance(signAlgo);
             PublicKey pubKey = readPublicKey("src/main/java/com/ist/DepChain/keys/" + sender + "_pub.key");

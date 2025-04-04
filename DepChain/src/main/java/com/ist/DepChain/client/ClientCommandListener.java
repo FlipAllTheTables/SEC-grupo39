@@ -74,8 +74,6 @@ public class ClientCommandListener implements Runnable {
         String[] parts = command.split("\\s+", 2);
         String cmd = parts[0];
         String arg = (parts.length > 1) ? parts[1] : "";
-        String sender, receiver, value, transaction;
-        String[] args;
         Scanner scanner = new Scanner(System.in);
     
         int i = 0;
@@ -97,35 +95,31 @@ public class ClientCommandListener implements Runnable {
 
             case "TX":
                 String encodedTx;
-                if(!arg.isEmpty()) {
-                    System.out.println("Wrong format for ISTTX command. Use: ISTTX with no arguments");
-                    break;
-                }
 
                 while (true) {
                     try {
                         System.out.print("Enter sender: ");
-                        sender = scanner.nextLine().trim();
+                        String sender = scanner.nextLine().trim();
                         if (sender.isEmpty() || !ownedAccounts.contains(sender)) {
                             System.out.println("You do not own the account or the account is empty. Please try again.");
                             continue;
                         }
 
                         System.out.print("Enter receiver: ");
-                        receiver = scanner.nextLine().trim();
+                        String receiver = scanner.nextLine().trim();
                         if (receiver.isEmpty()) {
                             System.out.println("Receiver cannot be empty. Please try again.");
                             continue;
                         }
                         System.out.print("Enter value: ");
-                        value = scanner.nextLine().trim();
-                        if (value.isEmpty() || Integer.parseInt(value) <= 0) {
+                        String value = scanner.nextLine().trim();
+                        if (value.isEmpty() || Integer.parseInt(value) < 0) {
                             System.out.println("Value cannot be empty. Please try again.");
                             continue;
                         }
                         System.out.print("Enter transfer type: ");
-                        value = scanner.nextLine().trim();
-                        if (value.isEmpty() || Integer.parseInt(value) <= 0 || methodIds.get(value) == null) {
+                        String transferType = scanner.nextLine().trim();
+                        if (transferType.isEmpty() || methodIds.get(transferType) == null) {
                             System.out.println("Value cannot be empty. Please try again.");
                             continue;
                         }
@@ -134,7 +128,7 @@ public class ClientCommandListener implements Runnable {
                         String to;
                         int ammount;
 
-                        switch(value) {
+                        switch(transferType) {
                             case "transfer":
                                 System.out.print("Enter receiver: ");
                                 to = scanner.nextLine().trim();
@@ -219,17 +213,18 @@ public class ClientCommandListener implements Runnable {
                                 
                         }
                         encodedTx = formatTx(sender, receiver, Integer.parseInt(value), callData);
+                        break;
                     }
                     catch (Exception e) {
-                        System.out.println("Error parsing input. Please try again.");
+                        System.out.println("Error parsing input. Please try again: ");
+                        e.printStackTrace();
                         continue;
                     }
-                    break;
                 }
                 String nounce = Integer.toString(nodestate.myId) + Integer.toString(nodestate.seqNum);
                 encodedTx += "%" + Base64.getEncoder().encodeToString(nounce.getBytes());
-                for (i = 1; i < nodestate.numNodes-nodestate.bizantineProcesses + 1; i++) {
-                    String isttx = "DEPTX|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + encodedTx;
+                for (i = 1; i < nodestate.numNodes; i++) {
+                    String isttx = "TX|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + encodedTx;
                     int sendPort = BASE_PORT + i;
                     new Thread(() -> {
                         try {
@@ -342,20 +337,20 @@ public class ClientCommandListener implements Runnable {
             case "LOOP":
                 Random random = new Random();
                 for(int index=0; index<10;index++){
-                    if(random.nextBoolean()){
-                        String encodedDepTx;
+                        String encodedTxLoop;
                         int randomIndex = random.nextInt(accounts.size());
-                        String randomAccount = accounts.get(randomIndex);
                         String randomAccount2 = accounts.get(random.nextInt(accounts.size()));
+                        int randomValue = random.nextInt(100);
+                        String callData = methodIds.get("transfer") + padHexStringTo256Bit(randomAccount2) + convertIntegerToHex256Bit(randomValue);
         
-                        encodedDepTx = formatDepTx(randomAccount, randomAccount2, random.nextInt(100));
+                        encodedTxLoop = formatTx("0000000000000000000000000000000000000001", randomAccount2, randomValue, callData);
 
                         String nounce1 = Integer.toString(nodestate.myId) + Integer.toString(nodestate.seqNum);
-                        encodedDepTx += "%" + Base64.getEncoder().encodeToString(nounce1.getBytes());
+                        encodedTxLoop += "%" + Base64.getEncoder().encodeToString(nounce1.getBytes());
 
-                        for (i = 0; i < nodestate.numNodes; i++) {
-                            String isttx = "DEPTX|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + encodedDepTx;
-                            int sendPort = BASE_PORT + i;
+                        //for (i = 0; i < nodestate.numNodes; i++) {
+                            String isttx = "TX|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + encodedTxLoop;
+                            int sendPort = BASE_PORT; //+ i;
                             new Thread(() -> {
                                 try {
                                     apLink.send(isttx, sendPort);
@@ -363,33 +358,9 @@ public class ClientCommandListener implements Runnable {
                                     e.printStackTrace();
                                 }
                             }).start();
-                        }
-                    }
-                    else{
-                        String encodedIstTx1;
-                        int randomIndex = random.nextInt(accounts.size());
-                        String randomAccount = accounts.get(randomIndex);
-                        String randomAccount2 = accounts.get(random.nextInt(accounts.size()));
-        
-                        encodedIstTx1 = formatIstTx("transfer", new String[]{randomAccount, randomAccount2, Integer.toString(random.nextInt(100))});
-                        String nounce1 = Integer.toString(nodestate.myId) + Integer.toString(nodestate.seqNum);
-                        encodedIstTx1 += "%" + Base64.getEncoder().encodeToString(nounce1.getBytes());
-
-                        for (i = 0; i < nodestate.numNodes; i++) {
-                            String isttx = "ISTTX|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + encodedIstTx1;
-                            int sendPort = BASE_PORT + i;
-                            new Thread(() -> {
-                                try {
-                                    apLink.send(isttx, sendPort);
-                                } catch (Exception e) {
-                                    e.printStackTrace();
-                                }
-                            }).start();
-                        }
-                    }
-
+                        //}
                 }
-
+                break;
             
             case "READALL":
                 for (i = 0; i < nodestate.numNodes; i++) {
@@ -409,30 +380,11 @@ public class ClientCommandListener implements Runnable {
                 break;
         }
     }
-
-    private String formatDepTx(String sender, String receiver, int value) {
-        JsonObject jsonObject = new JsonObject();
-        jsonObject.addProperty("sender", sender);
-        jsonObject.addProperty("receiver", receiver);
-        jsonObject.addProperty("value", value);
-
-        return java.util.Base64.getEncoder().encodeToString(jsonObject.toString().getBytes());
-    }
-
-    private String formatIstTx (String transaction, String[] args) {
-        JsonObject jsonObject = new JsonObject();
-        jsonObject.addProperty("transaction", transaction);
-        JsonArray jsonArray = new JsonArray();
-        for (String arg : args) {
-            jsonArray.add(arg);
-        }
-        jsonObject.add("args", jsonArray);
-
-        return java.util.Base64.getEncoder().encodeToString(jsonObject.toString().getBytes());
-    }
     
     private String authenticate(String m, String account) throws Exception {
-        int accountId = (int)account.charAt(account.length() - 1);
+        int accountId = Character.getNumericValue(account.charAt(account.length() - 1));
+        System.out.println("Account ID: " + accountId);
+        System.out.println("Account: " + account);
         PrivateKey privKey = null;
         if (accountId == 1){
             privKey = (PrivateKey) readRSA("src/main/java/com/ist/DepChain/keys/Owner_priv.key", "priv");

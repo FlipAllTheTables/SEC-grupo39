@@ -18,12 +18,19 @@ import org.hyperledger.besu.evm.fluent.SimpleWorld;
 import org.hyperledger.besu.evm.tracing.StandardJsonTracer;
 
 import java.io.ByteArrayOutputStream;
+import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.math.BigInteger;
+import java.security.Key;
 import java.security.KeyFactory;
+import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.security.Signature;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
 import java.util.HashMap;
@@ -39,6 +46,7 @@ public class ManageContracts {
     public HashMap<String, Account> accounts;
     ByteArrayOutputStream byteArrayOutputStreamIst;
     ByteArrayOutputStream byteArrayOutputStreamBL;
+    private final String signAlgo = "SHA256withRSA";
 
     public ManageContracts() {
         contracts = new HashMap<>();
@@ -185,7 +193,89 @@ public class ManageContracts {
         return keyFactory.generatePublic(keySpec);
     }
 
-    public void executeTx(List<JsonObject> transactions){
+    public void processTransactions(List<JsonObject> transactions){
+        for (JsonObject transaction: transactions){
+            String sender = transaction.get("sender").getAsString();
+            String receiver = transaction.get("receiver").getAsString();
+            int value = transaction.get("value").getAsInt();
+            String data = transaction.get("data").getAsString();
+            String sign = transaction.get("signature").getAsString();
+
+            JsonObject unsignedMessage = new JsonObject();
+            unsignedMessage.addProperty("sender", sender);
+            unsignedMessage.addProperty("receiver", receiver);
+            unsignedMessage.addProperty("value", value);
+            unsignedMessage.addProperty("data", data);
+
+            try{
+                if(verifySign(unsignedMessage, sender, sign)){
+                    System.out.println("Signature verified successfully.");
+                }
+                else{
+                    System.out.println("Signature verification failed. Transaction Forged.");
+                    continue;                
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                continue;
+            }
+            if (value > 0){
+                depCoinExchange(accounts.get(sender), accounts.get(receiver), value);
+            }
+            if(data != null && !data.isEmpty()){
+                executeTx(data, sender);
+            }
+        }   
+    }
+
+    public void executeTx(String callData, String sender){
+        istCoinExecutor.sender(Address.fromHexString(sender));
+        istCoinExecutor.callData(Bytes.fromHexString(callData));
+        istCoinExecutor.execute();
+        String count = extractBooleanReturnData(byteArrayOutputStreamIst);
+        System.out.println("Output of 'executeTx():' " + count + "\n");
+    }
+
+    private boolean verifySign(JsonObject unsignedMessage, String account, String sign) throws Exception {
+        char lastChar = account.charAt(account.length() - 1);
+
+        // Convert the character to an integer
+        int accountId = Character.getNumericValue(lastChar);
+        PublicKey pubKey = null;
+        System.out.println("Account ID: " + accountId);
+        if (accountId == 1){
+            System.out.println("Reading key in file: " + "src/main/java/com/ist/DepChain/keys/Owner_pub.key");
+            pubKey = (PublicKey) readRSA("src/main/java/com/ist/DepChain/keys/Owner_pub.key", "pub");
+        }
+        else{
+            System.out.println("Reading key in file: " + "src/main/java/com/ist/DepChain/keys/Client_" + (accountId+1) + "_pub.key");
+            pubKey = (PublicKey) readRSA("src/main/java/com/ist/DepChain/keys/Client_" + (accountId+1) + "_pub.key", "pub");
+        }
+        byte[] decodedSign = Base64.getDecoder().decode(sign);
+        System.out.println("Decoded Sign: " + decodedSign);
+        Signature signMaker = Signature.getInstance(signAlgo);
+        signMaker.initVerify(pubKey);
+        signMaker.update(unsignedMessage.toString().getBytes());
+        return signMaker.verify(decodedSign);
+    }
+
+    public static Key readRSA(String keyPath, String type) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
+        byte[] encoded;
+        try (FileInputStream fis = new FileInputStream(keyPath)) {
+            encoded = new byte[fis.available()];
+            fis.read(encoded);
+        }
+        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+        if (type.equals("pub") ){
+            X509EncodedKeySpec keySpec = new X509EncodedKeySpec(encoded);
+            return keyFactory.generatePublic(keySpec);
+        }
+
+        PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(encoded);
+        return keyFactory.generatePrivate(keySpec);
+    }
+
+    /*public void executeTx(List<JsonObject> transactions){
         for (JsonObject transaction: transactions){
             System.out.println("Transaction: " + transaction);
             boolean isIstCoin = transaction.has("transaction");
@@ -246,6 +336,7 @@ public class ManageContracts {
             }
         }
     }
+        */
 
     public void depCoinExchange(Account sender, Account receiver, int amount){
         if (amount < 0) {
