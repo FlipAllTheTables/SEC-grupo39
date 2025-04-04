@@ -46,6 +46,15 @@ public class Block {
         }
     }
 
+    //Constructor for aborted blocks
+    public Block(String aborted){
+        this.prevBlockHash = "";
+        this.transactions = new ArrayList<>();
+        this.accounts = null;
+        this.contracts = null;
+        this.blockHash = aborted;
+    }
+
     private String calculateHashGenesis() throws Exception {
         MessageDigest digest = MessageDigest.getInstance(SHA2_ALGORITHM);
         StringBuilder dataString = new StringBuilder();

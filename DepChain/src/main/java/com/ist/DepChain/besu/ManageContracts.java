@@ -26,7 +26,6 @@ import java.math.BigInteger;
 import java.security.Key;
 import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
-import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.Signature;
 import java.security.spec.InvalidKeySpecException;
@@ -274,69 +273,6 @@ public class ManageContracts {
         PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(encoded);
         return keyFactory.generatePrivate(keySpec);
     }
-
-    /*public void executeTx(List<JsonObject> transactions){
-        for (JsonObject transaction: transactions){
-            System.out.println("Transaction: " + transaction);
-            boolean isIstCoin = transaction.has("transaction");
-            //DepCoin transaction
-            if(!isIstCoin){
-                String sender = transaction.get("sender").getAsString();
-                String receiver = transaction.get("receiver").getAsString();
-                int value = transaction.get("value").getAsInt();
-                depCoinExchange(accounts.get(sender), accounts.get(receiver), value);
-            }
-            //ISTCoin transaction
-            else{
-                String txType = transaction.get("transaction").getAsString();
-                JsonArray args = transaction.get("args").getAsJsonArray();
-                StringBuilder argsString = new StringBuilder();
-                for (JsonElement arg : args) {
-                    argsString.append(arg.getAsString()).append(" ");
-                }
-                String argsString1 = argsString.toString().trim(); 
-                switch (txType) {
-                    case "transfer":
-                        String[] transferArgs = argsString1.split(" ");
-                        String transferSender = transferArgs[1];
-                        String transferReceiver = transferArgs[0];
-                        int transferAmount = Integer.parseInt(transferArgs[2]);
-                        executeTransfer(transferSender, transferReceiver, transferAmount);
-                        break;
-                    
-                    case "transferFrom":
-                        String[] transferFromArgs = argsString1.split(" ");
-                        String transferFromSender = transferFromArgs[1];
-                        String transferFromReceiver = transferFromArgs[0];
-                        int transferFromAmount = Integer.parseInt(transferFromArgs[2]);
-                        executeTransferFrom(transferFromSender, transferFromReceiver, transferFromAmount);
-                        break;
-
-                    case "approve":
-                        String[] approveArgs = argsString1.split(" ");
-                        String approveSender = approveArgs[1];
-                        String approveSpender = approveArgs[0];
-                        int approveAmount = Integer.parseInt(approveArgs[2]);
-                        executeApprove(approveSender, approveSpender, approveAmount);
-                        break;
-
-                    case "addToBlackList":
-                        String[] addToBlackListArgs = argsString1.split(" ");
-                        String addToBlackListSender = addToBlackListArgs[0];
-                        executeAddToBlackList(addToBlackListSender);
-                        break;
-
-                    case "removeFromBlackList":
-                        String[] removeFromBlackListArgs = argsString1.split(" ");
-                        String removeFromBlackListSender = removeFromBlackListArgs[0];
-                        executeRemoveFromBlackList(removeFromBlackListSender);
-                        break;
-                }
-
-            }
-        }
-    }
-        */
 
     public void depCoinExchange(Account sender, Account receiver, int amount){
         if (amount < 0) {

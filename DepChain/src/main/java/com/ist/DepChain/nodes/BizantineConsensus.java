@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.*;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -28,8 +29,11 @@ public class BizantineConsensus {
     private final String signAlgo = "SHA256withRSA";
     private List<Map<String, Integer>> countedWrites;
     private List<Map<String, Integer>> countedAccepts;
+    private List<Integer> countedAborts;
     private List<Boolean> consenusReached;
     private List<Boolean> alreadyWritten;
+    private Map<Integer, ScheduledFuture<?>> abortTimers = new HashMap<>();
+    private ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
     ManageContracts manageContracts;
 
     public BizantineConsensus(NodeState nodeState, AuthenticatedPerfectLink apLink, ManageContracts manageContracts) {
@@ -40,10 +44,12 @@ public class BizantineConsensus {
         countedAccepts = new ArrayList<>();
         consenusReached = new ArrayList<>();
         alreadyWritten = new ArrayList<>();
+        countedAborts = new ArrayList<>();
         for (int i = 0; i < 100; i++) {
             storedMessages.add(new ArrayList<>());
             countedWrites.add(new HashMap<>());
             countedAccepts.add(new HashMap<>());
+            countedAborts.add(0);
             consenusReached.add(false);
             alreadyWritten.add(false);
         }
@@ -289,19 +295,75 @@ public class BizantineConsensus {
         if (countedAccepts.get(consensusIndex) == null) {
             countedAccepts.set(consensusIndex, new HashMap<>());
         }
+
+        // Increment the count for the accepted value
         countedAccepts.get(consensusIndex).put(value, countedAccepts.get(consensusIndex).getOrDefault(value, 0) + 1);
 
+        // Check if consensus is reached
         if (countedAccepts.get(consensusIndex).get(value) == nodestate.quorumSize && !consenusReached.get(consensusIndex)) {
             consenusReached.set(consensusIndex, true);
             nodestate.val.set(consensusIndex, value);
             nodestate.valuesToAppend.remove(value);
             System.out.println("Decided on value: " + value);
-            addToBlockChain(value);       
-        }
+            addToBlockChain(value);
 
+            // Cancel the timer if consensus is reached
+            if (abortTimers.containsKey(consensusIndex)) {
+                abortTimers.get(consensusIndex).cancel(false);
+                abortTimers.remove(consensusIndex);
+            }
+        } else {
+            // Start a timer if not already started
+            if (!abortTimers.containsKey(consensusIndex)) {
+                ScheduledFuture<?> abortTask = scheduler.schedule(() -> {
+                    if (!consenusReached.get(consensusIndex)) {
+                        sendAbort(consensusIndex);
+                    }
+                }, 5, TimeUnit.SECONDS); // Set the timeout duration (e.g., 10 seconds)
+
+                abortTimers.put(consensusIndex, abortTask);
+            }
+        }
+    }
+
+    private void sendAbort(int consensusIndex) {
+        String abortMessage = "ABORT|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + consensusIndex;
+        for (int i = 0; i < nodestate.numNodes; i++) {
+            if (i == nodestate.myId) {
+                continue;
+            }
+            final int port = BASE_PORT + i;
+            new Thread(() -> {
+                try {
+                    apLink.send(abortMessage, port);
+                    System.out.println("Sent abort message for consensusIndex: " + consensusIndex);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }).start();
+        }
+    }
+
+    public void countAborts(String abort) {
+        String[] abortArray = abort.split("\\|", 6);
+        int consensusIndex = Integer.parseInt(abortArray[3]);
+
+        countedAborts.set(consensusIndex, countedAborts.get(consensusIndex) + 1);
+        if (countedAborts.get(consensusIndex) == nodestate.quorumSize && !consenusReached.get(consensusIndex)) {
+            consenusReached.set(consensusIndex, true);
+            System.out.println("Consensus aborted for index: " + consensusIndex);
+            nodestate.val.set(consensusIndex, "ABORTED");
+            nodestate.valuesToAppend.remove("ABORTED");
+            addToBlockChain("ABORTED");
+        }
     }
 
     private void addToBlockChain(String transactions){
+        if(transactions.equals("ABORTED")){
+            nodestate.blockChain.add(new Block(transactions));
+            return;
+        }
+
         String decodedTransaction = new String(Base64.getDecoder().decode(transactions));
         String[] transactionArray = decodedTransaction.split("&");
         List<JsonObject> jsonArray = new ArrayList<>();

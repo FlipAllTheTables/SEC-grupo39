@@ -236,129 +236,39 @@ public class ClientCommandListener implements Runnable {
                 }
                 break;
 
-            /*case "DEPTX":
-                String encodedTx;
-                if(!arg.isEmpty()) {
-                    System.out.println("Wrong format for ISTTX command. Use: ISTTX with no arguments");
-                    break;
-                }
-
-                while (true) {
-                    try {
-                        System.out.print("Enter sender: ");
-                        sender = scanner.nextLine().trim();
-                        if (sender.isEmpty() ) {
-                            System.out.println("Sender cannot be empty. Please try again.");
-                            continue;
-                        }
-
-                        System.out.print("Enter receiver: ");
-                        receiver = scanner.nextLine().trim();
-                        if (receiver.isEmpty()) {
-                            System.out.println("Receiver cannot be empty. Please try again.");
-                            continue;
-                        }
-                        System.out.print("Enter value: ");
-                        value = scanner.nextLine().trim();
-                        if (value.isEmpty() || Integer.parseInt(value) <= 0) {
-                            System.out.println("Value cannot be empty. Please try again.");
-                            continue;
-                        }
-                        encodedTx = formatDepTx(sender, receiver, Integer.parseInt(value));
-                    }
-                    catch (Exception e) {
-                        System.out.println("Error parsing input. Please try again.");
-                        continue;
-                    }
-                    break;
-                }
-                String nounce = Integer.toString(nodestate.myId) + Integer.toString(nodestate.seqNum);
-                encodedTx += "%" + Base64.getEncoder().encodeToString(nounce.getBytes());
-                for (i = 1; i < nodestate.numNodes-nodestate.bizantineProcesses + 1; i++) {
-                    String isttx = "DEPTX|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + encodedTx;
-                    int sendPort = BASE_PORT + i;
-                    new Thread(() -> {
-                        try {
-                            apLink.send(isttx, sendPort);
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                    }).start();
-                }
-                break;
-            
-            case "ISTTX":
-                String encodedIstTx;
-                if(!arg.isEmpty()) {
-                    System.out.println("Wrong format for ISTTX command. Use: ISTTX with no arguments");
-                    break;
-                }
-
-                while (true) {
-                    try {
-                        System.out.print("Enter transaction: ");
-                        transaction = scanner.nextLine().trim();
-                        if (transaction.isEmpty() || !transaction.equals("transfer") || !transaction.equals("transferFrom") || !transaction.equals("approve") || !transaction.equals("addToBlackList") || !transaction.equals("removeFromBlackList") || !transaction.equals("isBlackListed")) {
-                            System.out.println("Not a valid transaction. Valid transactions are: transfer, transferFrom, approve, addToBlackList, removeFromBlackList, isBlackListed.");
-                            continue;
-                        }
-
-                        System.out.print("Enter args: ");
-                        String argString = scanner.nextLine().trim();
-                        if (argString.isEmpty()) {
-                            System.out.println("Please enter args.");
-                            continue;
-                        }
-                        args = argString.split("\\s+");
-                        encodedIstTx = formatIstTx(transaction, args);
-                        String nounce1 = Integer.toString(nodestate.myId) + Integer.toString(nodestate.seqNum);
-                        encodedIstTx += "%" + Base64.getEncoder().encodeToString(nounce1.getBytes());
-                    }
-                    catch (Exception e) {
-                        System.out.println("Error parsing input. Please try again.");
-                        continue;
-                    }
-                    break;
-                }
-
-                for (i = 0; i < nodestate.numNodes; i++) {
-                    String isttx = "ISTTX|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + encodedIstTx;
-                    int sendPort = BASE_PORT + i;
-                    new Thread(() -> {
-                        try {
-                            apLink.send(isttx, sendPort);
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                    }).start();
-                }
-                break;*/
-
             case "LOOP":
                 Random random = new Random();
-                for(int index=0; index<10;index++){
-                        String encodedTxLoop;
-                        int randomIndex = random.nextInt(accounts.size());
-                        String randomAccount2 = accounts.get(random.nextInt(accounts.size()));
-                        int randomValue = random.nextInt(100);
-                        String callData = methodIds.get("transfer") + padHexStringTo256Bit(randomAccount2) + convertIntegerToHex256Bit(randomValue);
-        
-                        encodedTxLoop = formatTx("0000000000000000000000000000000000000001", randomAccount2, randomValue, callData);
+                for (int index = 0; index < 10; index++) {
+                    String encodedTxLoop;
+                    String randomAccount2 = accounts.get(random.nextInt(accounts.size()));
+                    int randomValue = random.nextInt(100);
+                    String callData = methodIds.get("transfer") + padHexStringTo256Bit(randomAccount2) + convertIntegerToHex256Bit(randomValue);
 
-                        String nounce1 = Integer.toString(nodestate.myId) + Integer.toString(nodestate.seqNum);
-                        encodedTxLoop += "%" + Base64.getEncoder().encodeToString(nounce1.getBytes());
+                    encodedTxLoop = formatTx("0000000000000000000000000000000000000001", randomAccount2, randomValue, callData);
 
-                        //for (i = 0; i < nodestate.numNodes; i++) {
-                            String isttx = "TX|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + encodedTxLoop;
-                            int sendPort = BASE_PORT; //+ i;
-                            new Thread(() -> {
-                                try {
-                                    apLink.send(isttx, sendPort);
-                                } catch (Exception e) {
-                                    e.printStackTrace();
-                                }
-                            }).start();
-                        //}
+                    String nounce1 = Integer.toString(nodestate.myId) + Integer.toString(nodestate.seqNum);
+                    encodedTxLoop += "%" + Base64.getEncoder().encodeToString(nounce1.getBytes());
+
+                    for (i = 0; i < nodestate.numNodes; i++) {
+                        String isttx = "TX|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + encodedTxLoop;
+                        int sendPort = BASE_PORT + i;
+
+                        new Thread(() -> {
+                            try {
+                                apLink.send(isttx, sendPort);
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                        }).start();
+                    }
+
+                    // Introduce a random delay between 0 and 1 second (in milliseconds)
+                    int delay = random.nextInt(1000); // Random delay between 0 and 1000 ms
+                    try {
+                        Thread.sleep(delay); // Pause the loop for the random delay
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
                 }
                 break;
             

@@ -10,11 +10,9 @@ import com.ist.DepChain.nodes.NodeState;
 public class FairLossLink {
     
     private DatagramSocket socket;
-    private NodeState nodestate;
 
     public FairLossLink(DatagramSocket socket, NodeState nodeState) throws SocketException {
         this.socket = socket;
-        this.nodestate = nodeState;
     }
 
     public void send(String m, int port) throws Exception {

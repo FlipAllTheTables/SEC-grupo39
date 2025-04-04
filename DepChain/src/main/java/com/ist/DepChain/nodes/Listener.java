@@ -124,17 +124,7 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
                                 bizantineConsensus.read(consensusIndex);
                             }
                         }
-                    }
-                    else{
-                        String init = "TX|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + message.replaceAll("\\|", "\\$");
-                        new Thread(() -> {
-                            try {
-                                apLink.send(init, BASE_PORT);
-                            } catch (Exception e) {
-                                e.printStackTrace();
-                            }
-                        }).start();
-                    }                    
+                    }                   
                     break;
 
                 case "READ":
@@ -197,6 +187,17 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
                         e.printStackTrace();
                     }
                     bizantineConsensus.countAccepts(message);
+                    break;
+
+                case "ABORT":
+                    System.out.println("Received message from " + senderId + ": " + message);
+                    try {
+                        //System.out.println("Sending Acknoledge to message: " + seqNum + " from sender: " + senderId);
+                        apLink.sendAck(Integer.valueOf(seqNum), Integer.valueOf(senderId));
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                    bizantineConsensus.countAborts(message);
                     break;
                 
                 case "READALL":
