@@ -19,8 +19,8 @@ public class FairLossLink {
         byte[] buf = new byte[10000];
         buf = m.getBytes();
         DatagramPacket packet = new DatagramPacket(buf, buf.length, InetAddress.getByName("localhost"), port);
-        System.out.println("Sending message: " + m);
-        System.out.println("");
+        //System.out.println("Sending message: " + m);
+        //System.out.println("");
         socket.send(packet);
     }
 

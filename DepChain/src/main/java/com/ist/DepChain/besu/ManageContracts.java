@@ -1,6 +1,7 @@
 package com.ist.DepChain.besu;
 
 import com.ist.DepChain.blocks.Block;
+import com.ist.DepChain.links.AuthenticatedPerfectLink;
 import com.ist.DepChain.nodes.NodeState;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -8,7 +9,6 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import org.apache.tuweni.bytes.Bytes;
 
-import org.apache.tuweni.units.bigints.UInt256;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Wei;
 import org.hyperledger.besu.evm.*;
@@ -46,10 +46,15 @@ public class ManageContracts {
     ByteArrayOutputStream byteArrayOutputStreamIst;
     ByteArrayOutputStream byteArrayOutputStreamBL;
     private final String signAlgo = "SHA256withRSA";
+    NodeState nodestate;
+    AuthenticatedPerfectLink apLink;
+    private static final int BASE_PORT = 5000;
 
-    public ManageContracts() {
+    public ManageContracts(NodeState nodeState, AuthenticatedPerfectLink apLink) {
         contracts = new HashMap<>();
         accounts = new HashMap<>();
+        this.nodestate = nodeState;
+        this.apLink = apLink;
     }
 
     public void createContracts (Contract istCoin, HashMap<String, Account> accounts) {
@@ -59,12 +64,12 @@ public class ManageContracts {
 
         simpleWorld.createAccount(istCoinAddress,0, Wei.fromEth(0));
         contractAccount = (MutableAccount) simpleWorld.get(istCoinAddress);
-        System.out.println("istCoin Contract Account");
-        System.out.println("  Address: "+contractAccount.getAddress());
-        System.out.println("  Balance: "+contractAccount.getBalance());
-        System.out.println("  Nonce: "+contractAccount.getNonce());
-        System.out.println("  Storage:");
-        System.out.println("    Slot 0: "+simpleWorld.get(istCoinAddress).getStorageValue(UInt256.valueOf(0)));
+        //System.out.println("istCoin Contract Account");
+        //System.out.println("  Address: "+contractAccount.getAddress());
+        //System.out.println("  Balance: "+contractAccount.getBalance());
+        //System.out.println("  Nonce: "+contractAccount.getNonce());
+        //System.out.println("  Storage:");
+        //System.out.println("    Slot 0: "+simpleWorld.get(istCoinAddress).getStorageValue(UInt256.valueOf(0)));
 
         byteArrayOutputStreamIst = new ByteArrayOutputStream();
         PrintStream printStreamIst = new PrintStream(byteArrayOutputStreamIst);
@@ -88,7 +93,7 @@ public class ManageContracts {
     public void initializeAccounts(HashMap<String, Account> accounts, SimpleWorld simpleWorld) {
         for (Map.Entry<String, Account> entry : accounts.entrySet()) {
             String address = entry.getKey();
-            String balance = entry.getValue().balance;
+            String balance = entry.getValue().balanceDep;
 
             Address accountAddress = Address.fromHexString(address);
             Wei weiBalance = Wei.fromEth(Long.parseLong(balance));
@@ -104,18 +109,6 @@ public class ManageContracts {
             // Parse JSON file
             JsonObject genesisBlock = JsonParser.parseReader(reader).getAsJsonObject();
 
-            // Extract block hash
-            String blockHash = genesisBlock.get("block_hash").getAsString();
-            System.out.println("Block Hash: " + blockHash);
-
-            // Extract previous block hash
-            String prevBlockHash = genesisBlock.get("previous_block_hash").isJsonNull() ? "None" : genesisBlock.get("previous_block_hash").getAsString();
-            System.out.println("Previous Block Hash: " + prevBlockHash);
-
-            // Extract transactions
-            JsonArray transactions = genesisBlock.getAsJsonArray("transactions");
-            System.out.println("Number of Transactions: " + transactions.size());
-
             // Extract state (accounts and contracts)
             JsonObject state = genesisBlock.getAsJsonObject("state");
 
@@ -128,7 +121,7 @@ public class ManageContracts {
 
                 if(isContract){
                     HashMap<String, String> methodIds = new HashMap<>();
-                    System.out.println("IstCoin Contract");
+                    //System.out.println("IstCoin Contract");
                     methodIds.put("transfer", accountData.get("transfer").getAsString());
                     methodIds.put("transferFrom", accountData.get("transferFrom").getAsString());
                     methodIds.put("addToBlackList", accountData.get("addToBlackList").getAsString());
@@ -145,7 +138,7 @@ public class ManageContracts {
                             methodIds
                     );
                     contracts.put(entry.getKey(), contract);
-                    System.out.println(contract);
+                    //System.out.println(contract);
                 }
                 else{
                     String pubKey = accountData.get("Public Key").getAsString();
@@ -199,6 +192,8 @@ public class ManageContracts {
             int value = transaction.get("value").getAsInt();
             String data = transaction.get("data").getAsString();
             String sign = transaction.get("signature").getAsString();
+            //System.out.println("Sender: " + sender);
+            //System.out.println("Data: " + data);
 
             JsonObject unsignedMessage = new JsonObject();
             unsignedMessage.addProperty("sender", sender);
@@ -218,21 +213,56 @@ public class ManageContracts {
                 e.printStackTrace();
                 continue;
             }
+            Boolean resultDep = false;
             if (value > 0){
-                depCoinExchange(accounts.get(sender), accounts.get(receiver), value);
+                resultDep = depCoinExchange(accounts.get(sender), accounts.get(receiver), value);
             }
+
+            String returnTx = "";
             if(data != null && !data.isEmpty()){
-                executeTx(data, sender);
+                returnTx = executeTx(data, sender);
             }
+            Boolean finalResult = false;
+            if(resultDep == true && returnTx.equals("true")){
+                finalResult = true;
+            }
+            else{
+                finalResult = false;
+            }
+            feedbackClient(finalResult, Base64.getEncoder().encodeToString(transaction.toString().getBytes()), returnTx);
         }   
     }
 
-    public void executeTx(String callData, String sender){
+    private void feedbackClient(boolean result, String encodedTx, String returnTx) {
+        //System.out.println("Feedback to client: " + encodedTx);
+        if(!nodestate.hashToClientMap.containsKey(encodedTx)){
+            System.out.println("Cannot respond to client as the client did not send the transaction to me.");
+            return;
+        }
+        int clientId = nodestate.hashToClientMap.get(encodedTx);
+
+        if(returnTx.equals("true")){
+            returnTx = "";
+        }
+
+        String message = "FEEDBACK|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + encodedTx + "&" + result + "&" + returnTx;
+        new Thread(() -> {
+            try {
+                apLink.send(message, BASE_PORT + clientId);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }).start();
+        
+    }
+
+    public String executeTx(String callData, String sender){
         istCoinExecutor.sender(Address.fromHexString(sender));
         istCoinExecutor.callData(Bytes.fromHexString(callData));
         istCoinExecutor.execute();
         String count = extractBooleanReturnData(byteArrayOutputStreamIst);
         System.out.println("Output of 'executeTx():' " + count + "\n");
+        return count;
     }
 
     private boolean verifySign(JsonObject unsignedMessage, String account, String sign) throws Exception {
@@ -243,15 +273,15 @@ public class ManageContracts {
         PublicKey pubKey = null;
         System.out.println("Account ID: " + accountId);
         if (accountId == 1){
-            System.out.println("Reading key in file: " + "src/main/java/com/ist/DepChain/keys/Owner_pub.key");
+            //System.out.println("Reading key in file: " + "src/main/java/com/ist/DepChain/keys/Owner_pub.key");
             pubKey = (PublicKey) readRSA("src/main/java/com/ist/DepChain/keys/Owner_pub.key", "pub");
         }
         else{
-            System.out.println("Reading key in file: " + "src/main/java/com/ist/DepChain/keys/Client_" + (accountId+1) + "_pub.key");
-            pubKey = (PublicKey) readRSA("src/main/java/com/ist/DepChain/keys/Client_" + (accountId+1) + "_pub.key", "pub");
+            //System.out.println("Reading key in file: " + "src/main/java/com/ist/DepChain/keys/Client_" + (accountId+1) + "_pub.key");
+            pubKey = (PublicKey) readRSA("src/main/java/com/ist/DepChain/keys/Client_" + (accountId-1) + "_pub.key", "pub");
         }
         byte[] decodedSign = Base64.getDecoder().decode(sign);
-        System.out.println("Decoded Sign: " + decodedSign);
+        //System.out.println("Decoded Sign: " + decodedSign);
         Signature signMaker = Signature.getInstance(signAlgo);
         signMaker.initVerify(pubKey);
         signMaker.update(unsignedMessage.toString().getBytes());
@@ -274,14 +304,14 @@ public class ManageContracts {
         return keyFactory.generatePrivate(keySpec);
     }
 
-    public void depCoinExchange(Account sender, Account receiver, int amount){
+    public boolean depCoinExchange(Account sender, Account receiver, int amount){
         if (amount < 0) {
             System.out.println("Invalid amount. Must be greater than or equal 0.");
-            return;
+            return false;
         }
         if(sender.account.getBalance().compareTo(Wei.fromEth(amount)) < 0) {
             System.out.println("Insufficient balance for transaction.");
-            return;
+            return false;
         }
         sender.account.decrementBalance(Wei.fromEth(amount));
         receiver.account.incrementBalance(Wei.fromEth(amount));
@@ -291,97 +321,22 @@ public class ManageContracts {
         System.out.println("Sender Balance in DepCoin: " + balanceInEther);
         BigInteger reciverBalanceInWei = receiver.account.getBalance().toBigInteger(); // Get the balance in Wei
         int recieverBalanceInEther = reciverBalanceInWei.divide(BigInteger.TEN.pow(18)).intValue(); // Convert to Ether as an integer
-        System.out.println("Sender Balance in DepCoin: " + recieverBalanceInEther + "\n");
-    }
+        System.out.println("Receiver Balance in DepCoin: " + recieverBalanceInEther + "\n");
 
-    public void executeTransfer(String sender, String to, int amount){
-        String paddedTo = padHexStringTo256Bit(to);
-        String paddedAmount = convertIntegerToHex256Bit(amount);
-
-        String transferCodeWithArgs = contracts.get("ISTCoin").methodIds.get("transfer") + paddedTo + paddedAmount;
-        istCoinExecutor.sender(Address.fromHexString(sender));
-        istCoinExecutor.callData(Bytes.fromHexString(transferCodeWithArgs));
-        istCoinExecutor.execute();
-
-        String count = extractBooleanReturnData(byteArrayOutputStreamIst);
-        System.out.println("Output of 'transfer():' " + count + "\n");
-    }
-
-    public void executeTransferFrom(String to, String From, int amount){
-        String paddedTo = padHexStringTo256Bit(to);
-        String paddedFrom = padHexStringTo256Bit(From);
-        String paddedAmount = convertIntegerToHex256Bit(amount);
-
-        String transferFromCodeWithArgs = contracts.get("ISTCoin").methodIds.get("transferFrom") + paddedFrom + paddedTo + paddedAmount;
-        System.out.println("TransferFrom Code with Args: " + transferFromCodeWithArgs);
-        istCoinExecutor.sender(Address.fromHexString(to));
-        istCoinExecutor.callData(Bytes.fromHexString(transferFromCodeWithArgs));
-        istCoinExecutor.execute();
-
-        String count = extractBooleanReturnData(byteArrayOutputStreamIst);
-        System.out.println("Output of 'transferFrom():' " + count + "\n");
-    }
-
-    public void executeAddToBlackList(String address){
-        String paddedAddress = padHexStringTo256Bit(address);
-
-        String addToBlackListCodeWithArgs = contracts.get("ISTCoin").methodIds.get("addToBlackList") + paddedAddress;
-        istCoinExecutor.sender(Address.fromHexString(address));
-        istCoinExecutor.callData(Bytes.fromHexString(addToBlackListCodeWithArgs));
-        istCoinExecutor.execute();
-
-        String count = extractBooleanReturnData(byteArrayOutputStreamIst);
-        System.out.println("AddtoBlackList():' " + count + "\n");
-    }
-
-    public void executeRemoveFromBlackList(String address){
-        String paddedAddress = padHexStringTo256Bit(address);
-
-        String removeFromBlackListCodeWithArgs = contracts.get("BlackList").methodIds.get("removeFromBlackList") + paddedAddress;
-        istCoinExecutor.sender(Address.fromHexString(address));
-        istCoinExecutor.callData(Bytes.fromHexString(removeFromBlackListCodeWithArgs));
-        istCoinExecutor.execute();
-
-        String count = extractBooleanReturnData(byteArrayOutputStreamIst);
-        System.out.println("RemoveFromBlackList():' " + count + "\n");
-    }
-
-    public void executeIsBlackListed(String address){
-        String paddedAddress = padHexStringTo256Bit(address);
-
-        String isBlackListedCodeWithArgs = contracts.get("BlackList").methodIds.get("isBlackListed") + paddedAddress;
-        istCoinExecutor.sender(Address.fromHexString(address));
-        istCoinExecutor.callData(Bytes.fromHexString(isBlackListedCodeWithArgs));
-        istCoinExecutor.execute();
-
-        String count = extractBooleanReturnData(byteArrayOutputStreamIst);
-        System.out.println("isBlackListed():' " + count + "\n");
-    }
-
-    public void executeApprove(String sender, String spender, int amount){
-        String paddedSpender = padHexStringTo256Bit(spender);
-        String paddedAmount = convertIntegerToHex256Bit(amount);
-
-        String approveCodeWithArgs = contracts.get("ISTCoin").methodIds.get("approve") + paddedSpender + paddedAmount;
-        System.out.println("Approve Code with Args: " + approveCodeWithArgs);
-        istCoinExecutor.sender(Address.fromHexString(sender));
-        istCoinExecutor.callData(Bytes.fromHexString(approveCodeWithArgs));
-        istCoinExecutor.execute();
-
-        String count = extractBooleanReturnData(byteArrayOutputStreamIst);
-        System.out.println("Output of 'approve():' " + count + "\n");
-
+        return true;
     }
 
     public static String extractFromReturnData(ByteArrayOutputStream byteArrayOutputStream) {
         String[] lines = byteArrayOutputStream.toString().split("\\r?\\n");
         JsonObject jsonObject = JsonParser.parseString(lines[lines.length - 1]).getAsJsonObject();
 
+        //System.out.println(jsonObject);
+
         String memory = jsonObject.get("memory").getAsString();
 
         JsonArray stack = jsonObject.get("stack").getAsJsonArray();
         int offset = Integer.decode(stack.get(stack.size() - 1).getAsString());
-        System.out.println(stack.get(stack.size() - 2).getAsString());
+        //System.out.println(stack.get(stack.size() - 2).getAsString());
         int size = Integer.decode(stack.get(stack.size() - 2).getAsString());
 
         return memory.substring(2 + offset * 2, 2 + offset * 2 + size * 2);
@@ -390,6 +345,19 @@ public class ManageContracts {
     public static String extractBooleanReturnData(ByteArrayOutputStream byteArrayOutputStream) {
         String[] lines = byteArrayOutputStream.toString().split("\\r?\\n");
         JsonObject jsonObject = JsonParser.parseString(lines[lines.length - 1]).getAsJsonObject();
+        //System.out.println(jsonObject);
+
+        if(jsonObject.get("opName").getAsString().equals("REVERT")) {
+            String error = new String (hexStringToByteArray(extractErrorFromReturnData(byteArrayOutputStream)));
+            if(error.contains("Sender is blacklisted")){
+                error = "Sender is blacklisted";
+            }
+            else{
+                error = "Not enough balance";
+            }
+            //System.out.println("Error: " + error);
+            return error;
+        }
 
         String memory = jsonObject.get("memory").getAsString();
 
@@ -404,6 +372,32 @@ public class ManageContracts {
         else{
             return "true";
         }
+    }
+
+    public static byte[] hexStringToByteArray(String s) {
+        int len = s.length();
+        byte[] data = new byte[len / 2];
+        for (int i = 0; i < len; i += 2) {
+            data[i / 2] = (byte) ((Character.digit(s.charAt(i), 16) << 4)
+                                 + Character.digit(s.charAt(i+1), 16));
+        }
+        return data;
+    }
+
+    public static String extractErrorFromReturnData(ByteArrayOutputStream byteArrayOutputStream) {
+        String[] lines = byteArrayOutputStream.toString().split("\\r?\\n");
+        JsonObject jsonObject = JsonParser.parseString(lines[lines.length - 1]).getAsJsonObject();
+
+        //System.out.println(jsonObject);
+
+        String memory = jsonObject.get("memory").getAsString();
+
+        JsonArray stack = jsonObject.get("stack").getAsJsonArray();
+        int offset = Integer.decode(stack.get(stack.size() - 1).getAsString());
+        //System.out.println(stack.get(stack.size() - 2).getAsString());
+        int size = Integer.decode(stack.get(stack.size() - 2).getAsString());
+
+        return memory.substring(2 + offset * 2, 2 + offset * 2 + size * 2);
     }
 
     public static String convertIntegerToHex256Bit(int number) {

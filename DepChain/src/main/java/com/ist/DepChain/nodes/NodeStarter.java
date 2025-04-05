@@ -48,7 +48,7 @@ public class NodeStarter {
         id = Integer.valueOf(args[0]);
         int num_nodes = Integer.valueOf(args[1]);
         
-        boolean isByzantine = args[2].equals("1") ? true : false;
+        int isByzantine = Integer.parseInt(args[2]);
         
         generateRSAKeys();
         nodestate = new NodeState(id, num_nodes, isByzantine);
@@ -56,13 +56,13 @@ public class NodeStarter {
         PrivateKey privKey = (PrivateKey) readRSA("src/main/java/com/ist/DepChain/keys/" + id + "_priv.key", "priv");
         nodestate.privateKey = privKey;
 
-        methodIds = new HashMap<>();
-        ManageContracts manageContracts = new ManageContracts();
-        methodIds = manageContracts.parseGenesisBlock("src/main/java/com/ist/DepChain/genesis_block/genesis_block.json", nodestate);
-
         // AuthenticatedPerfectLink used to communicate with other nodes
         DatagramSocket socket = new DatagramSocket(id + BASE_PORT);
         apLink = new AuthenticatedPerfectLink(socket, nodestate, privKey);
+
+        methodIds = new HashMap<>();
+        ManageContracts manageContracts = new ManageContracts(nodestate, apLink);
+        methodIds = manageContracts.parseGenesisBlock("src/main/java/com/ist/DepChain/genesis_block/genesis_block.json", nodestate);
 
         if (args[3].equals("1")) {
             nodestate.isClient = true;
@@ -111,12 +111,12 @@ public class NodeStarter {
 
         nodestate.sharedKeys.put(node, new SecretKeySpec(encodedKey.getBytes(), "AES"));
 
-        System.out.println("Key saved to " + KEY_FILE);
+        //System.out.println("Key saved to " + KEY_FILE);
         return encodedKey;
     }
 
     private static void generateRSAKeys() throws GeneralSecurityException, IOException {
-        System.out.println("Generating RSA keys for node " + id);
+        //System.out.println("Generating RSA keys for node " + id);
         KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA");
         keyGen.initialize(4096);
         KeyPair keys = keyGen.generateKeyPair();

@@ -20,7 +20,6 @@ import java.util.Scanner;
 
 import com.ist.DepChain.links.AuthenticatedPerfectLink;
 import com.ist.DepChain.nodes.NodeState;
-import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
 public class ClientCommandListener implements Runnable {
@@ -142,7 +141,7 @@ public class ClientCommandListener implements Runnable {
                                     System.out.println("Value cannot be empty nor negative. Please try again.");
                                     continue;
                                 }
-                                callData = methodIds.get(value) + padHexStringTo256Bit(to) + convertIntegerToHex256Bit(ammount);
+                                callData = methodIds.get("transfer") + padHexStringTo256Bit(to) + convertIntegerToHex256Bit(ammount);
                                 break;
                             case "transferFrom":
                                 System.out.print("Enter sender: ");
@@ -163,7 +162,7 @@ public class ClientCommandListener implements Runnable {
                                     System.out.println("Value cannot be empty nor negative. Please try again.");
                                     continue;
                                 }
-                                callData = methodIds.get(value) + padHexStringTo256Bit(from) + padHexStringTo256Bit(to) + convertIntegerToHex256Bit(ammount);
+                                callData = methodIds.get("transferFrom") + padHexStringTo256Bit(from) + padHexStringTo256Bit(to) + convertIntegerToHex256Bit(ammount);
                                 break;
                             case "approve":
                                 System.out.print("Enter spender: ");
@@ -178,7 +177,7 @@ public class ClientCommandListener implements Runnable {
                                     System.out.println("Value cannot be empty nor negative. Please try again.");
                                     continue;
                                 }
-                                callData = methodIds.get(value) + padHexStringTo256Bit(to) + convertIntegerToHex256Bit(ammount);
+                                callData = methodIds.get("approve") + padHexStringTo256Bit(to) + convertIntegerToHex256Bit(ammount);
                                 break;
                             case "addToBlackList":
                                 System.out.print("Enter account: ");
@@ -187,7 +186,8 @@ public class ClientCommandListener implements Runnable {
                                     System.out.println("Account cannot be empty. Please try again.");
                                     continue;
                                 }
-                                callData = methodIds.get(value) + padHexStringTo256Bit(to);
+                                callData = methodIds.get("addToBlackList") + padHexStringTo256Bit(to);
+                                //System.out.println("callData: " + callData);
                                 break;
                             case "removeFromBlackList":
                                 System.out.print("Enter account: ");
@@ -196,7 +196,7 @@ public class ClientCommandListener implements Runnable {
                                     System.out.println("Account cannot be empty. Please try again.");
                                     continue;
                                 }
-                                callData = methodIds.get(value) + padHexStringTo256Bit(to);
+                                callData = methodIds.get("removeFromBlackList") + padHexStringTo256Bit(to);
                                 break;
                             case "isBlackListed":
                                 System.out.print("Enter account: ");
@@ -205,13 +205,14 @@ public class ClientCommandListener implements Runnable {
                                     System.out.println("Account cannot be empty. Please try again.");
                                     continue;
                                 }
-                                callData = methodIds.get(value) + padHexStringTo256Bit(to);
+                                callData = methodIds.get("isBlacklisted") + padHexStringTo256Bit(to);
                                 break;
                             default:
                                 System.out.println("Unknown transaction type. Please try again.");
                                 break;
                                 
                         }
+                        System.out.println("callData: " + callData);
                         encodedTx = formatTx(sender, receiver, Integer.parseInt(value), callData);
                         break;
                     }
@@ -223,8 +224,9 @@ public class ClientCommandListener implements Runnable {
                 }
                 String nounce = Integer.toString(nodestate.myId) + Integer.toString(nodestate.seqNum);
                 encodedTx += "%" + Base64.getEncoder().encodeToString(nounce.getBytes());
-                for (i = 1; i < nodestate.numNodes; i++) {
+                for (i = 0; i < nodestate.numNodes; i++) {
                     String isttx = "TX|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + encodedTx;
+                    //System.out.println("Sending: " + isttx);
                     int sendPort = BASE_PORT + i;
                     new Thread(() -> {
                         try {
@@ -243,8 +245,9 @@ public class ClientCommandListener implements Runnable {
                     String randomAccount2 = accounts.get(random.nextInt(accounts.size()));
                     int randomValue = random.nextInt(100);
                     String callData = methodIds.get("transfer") + padHexStringTo256Bit(randomAccount2) + convertIntegerToHex256Bit(randomValue);
+                    String sender = ownedAccounts.get(random.nextInt(ownedAccounts.size()));
 
-                    encodedTxLoop = formatTx("0000000000000000000000000000000000000001", randomAccount2, randomValue, callData);
+                    encodedTxLoop = formatTx(sender, randomAccount2, randomValue, callData);
 
                     String nounce1 = Integer.toString(nodestate.myId) + Integer.toString(nodestate.seqNum);
                     encodedTxLoop += "%" + Base64.getEncoder().encodeToString(nounce1.getBytes());
@@ -292,15 +295,18 @@ public class ClientCommandListener implements Runnable {
     }
     
     private String authenticate(String m, String account) throws Exception {
-        int accountId = Character.getNumericValue(account.charAt(account.length() - 1));
-        System.out.println("Account ID: " + accountId);
-        System.out.println("Account: " + account);
+        char lastChar = account.charAt(account.length() - 1);
+
+        // Convert the character to an integer
+        int accountId = Character.getNumericValue(lastChar);
+        //System.out.println("Account ID: " + accountId);
+        //System.out.println("Account: " + account);
         PrivateKey privKey = null;
         if (accountId == 1){
             privKey = (PrivateKey) readRSA("src/main/java/com/ist/DepChain/keys/Owner_priv.key", "priv");
         }
         else{
-            privKey = (PrivateKey) readRSA("src/main/java/com/ist/DepChain/keys/Client_" + (accountId+1) + "_priv.key", "priv");
+            privKey = (PrivateKey) readRSA("src/main/java/com/ist/DepChain/keys/Client_" + (accountId-1) + "_priv.key", "priv");
         }
         Signature signMaker = Signature.getInstance(signAlgo);
         signMaker.initSign(privKey);
@@ -318,6 +324,19 @@ public class ClientCommandListener implements Runnable {
 
         String sign = authenticate(jsonObject.toString(), sender);
         jsonObject.addProperty("signature", sign);
+
+        if(nodestate.isBizantine == 4){
+            Random random = new Random();
+            int length = 10; // Length of the random string
+            String characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+
+            StringBuilder randomString = new StringBuilder();
+            for (int i = 0; i < length; i++) {
+                int index = random.nextInt(characters.length());
+                randomString.append(characters.charAt(index));
+            }
+            jsonObject.addProperty("data", randomString.toString());
+        }
 
         return java.util.Base64.getEncoder().encodeToString(jsonObject.toString().getBytes());
     }

@@ -9,10 +9,13 @@ import java.security.Signature;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.List;
 
 import javax.crypto.spec.SecretKeySpec;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.ist.DepChain.links.AuthenticatedPerfectLink;
 
 /**
@@ -25,11 +28,13 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
         private static final int BASE_PORT = 5000;
         private BizantineConsensus bizantineConsensus;
         private final String signAlgo = "SHA256withRSA";
+        private HashMap<String, Integer> feedbackMap;
 
         public Listener(AuthenticatedPerfectLink apLink, NodeState nodeState, BizantineConsensus bizantineConsensus) {
             this.apLink = apLink;
             this.nodestate = nodeState;
             this.bizantineConsensus = bizantineConsensus;
+            this.feedbackMap = new HashMap<>();
         }
 
         public void run() {
@@ -101,12 +106,14 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
                         }
                         synchronized(nodestate.valuesToAppend){
                             if (!nodestate.valuesToAppend.contains(value)){
-                                System.out.println("Value: " + value + " added to the list of values to append");
+                                //System.out.println("Value: " + value + " added to the list of values to append");
                                 nodestate.valuesToAppend.add(value);
+                                String unNoncedValue = value.split("%", 2)[0];
+                                nodestate.hashToClientMap.put(unNoncedValue, Integer.parseInt(senderId));
                                 nodestate.currentBlockTransactions.add(value);
                             }
                             else{
-                                System.out.println("Value: " + value + " already in the list of values to append");
+                                //System.out.println("Value: " + value + " already in the list of values to append");
                                 return;
                             }
                             if(nodestate.currentBlockTransactions.size() == 10){
@@ -118,17 +125,21 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
                                 nodestate.currentBlockTransactions.clear();
                                 int consensusIndex = ++nodestate.consensusIndex;
                                 String state = prepareState(transactions);
-                                System.out.println("State: " + state);
+                                //System.out.println("State: " + state);
                                 nodestate.val.add(consensusIndex, state);
                                 nodestate.valts.add(consensusIndex, 0);
                                 bizantineConsensus.read(consensusIndex);
                             }
                         }
+                    }
+                    else{
+                        String unNoncedValue = value.split("%", 2)[0];
+                        nodestate.hashToClientMap.put(unNoncedValue, Integer.parseInt(senderId));
                     }                   
                     break;
 
                 case "READ":
-                    System.out.println("Received message from " + senderId + ": " + message);
+                    //System.out.println("Received message from " + senderId + ": " + message);
                     if (Integer.valueOf(senderId) != 0) {
                         System.out.println("READ command comes from non-leader node, discarded");
                         apLink.sendAck(Integer.valueOf(seqNum), Integer.valueOf(senderId));
@@ -144,7 +155,7 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
                     break;
 
                 case "STATE":
-                    System.out.println("Received message from " + senderId + ": " + message);
+                    //System.out.println("Received message from " + senderId + ": " + message);
                     int consensusRun = Integer.valueOf(message.split("\\|",6)[3]);
                     try {
                         //System.out.println("Sending Acknoledge to message: " + seqNum + " from sender: " + senderId);
@@ -156,7 +167,7 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
                     break;
 
                 case "COLLECTED":
-                    System.out.println("Received message from " + senderId + ": " + message);
+                    //System.out.println("Received message from " + senderId + ": " + message);
                     try {
                         //System.out.println("Sending Acknoledge to message: " + seqNum + " from sender: " + senderId);
                         apLink.sendAck(Integer.valueOf(seqNum), Integer.valueOf(senderId));
@@ -168,7 +179,7 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
                     break;
 
                 case "WRITE":
-                    System.out.println("Received message from " + senderId + ": " + message);
+                    //System.out.println("Received message from " + senderId + ": " + message);
                     try {
                         //System.out.println("Sending Acknoledge to message: " + seqNum + " from sender: " + senderId);
                         apLink.sendAck(Integer.valueOf(seqNum), Integer.valueOf(senderId));
@@ -179,7 +190,7 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
                     break;
 
                 case "ACCEPT":
-                    System.out.println("Received message from " + senderId + ": " + message);
+                    //System.out.println("Received message from " + senderId + ": " + message);
                     try {
                         //System.out.println("Sending Acknoledge to message: " + seqNum + " from sender: " + senderId);
                         apLink.sendAck(Integer.valueOf(seqNum), Integer.valueOf(senderId));
@@ -190,7 +201,7 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
                     break;
 
                 case "ABORT":
-                    System.out.println("Received message from " + senderId + ": " + message);
+                    System.out.println("Received Abort message from " + senderId + ": " + message);
                     try {
                         //System.out.println("Sending Acknoledge to message: " + seqNum + " from sender: " + senderId);
                         apLink.sendAck(Integer.valueOf(seqNum), Integer.valueOf(senderId));
@@ -231,13 +242,51 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
 
                 case "ESTABLISH":
                     String key = message.split("\\|",6)[3];
-                    System.out.println("Received message from " + senderId + ": " + message);
+                    //System.out.println("Received message from " + senderId + ": " + message);
                     nodestate.sharedKeys.put(Integer.parseInt(senderId), new SecretKeySpec(key.getBytes(), "AES"));
                     try {
                         apLink.sendAck(Integer.valueOf(seqNum), Integer.valueOf(senderId));
                         nodestate.acks.put(Integer.valueOf(senderId), new ArrayList<>());
                     } catch (Exception e) {
                         e.printStackTrace();
+                    }
+                    break;
+
+                case "FEEDBACK":
+                    //System.out.println("Received message from " + senderId + ": " + message);
+                    try {
+                        apLink.sendAck(Integer.valueOf(seqNum), Integer.valueOf(senderId));
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                    if(nodestate.myId < nodestate.numNodes){
+                        System.out.println("Message not for me as I am not a client");
+                        break;
+                    }
+                    String feedback = message.split("\\|",6)[3];
+
+                    if (feedbackMap.containsKey(feedback)){
+                        feedbackMap.put(feedback, feedbackMap.get(feedback) + 1);
+                        if(feedbackMap.get(feedback) == nodestate.numNodes - nodestate.bizantineProcesses){
+                            String encodedTx = feedback.split("&", 3)[0];
+                            String result = feedback.split("&", 3)[1];
+                            String error = feedback.split("&", 3)[2];
+                            byte[] decodedBytes = Base64.getDecoder().decode(encodedTx);
+                            String decodedString = new String(decodedBytes); // Convert byte[] to String
+                            JsonObject tx = JsonParser.parseString(decodedString).getAsJsonObject(); // Parse the JSON string
+        
+                            System.out.println("Transaction sent from account: " + tx.get("sender").getAsString());
+                            System.out.println("To account: " + tx.get("receiver").getAsString());
+                            System.out.println("With value: " + tx.get("value").getAsString());
+                            System.out.println("And result:" + result);
+                            if(!error.equals("")){
+                                System.out.println("Error: " + error);
+                            }
+                            System.out.println();
+                        }
+                    }
+                    else{
+                        feedbackMap.put(feedback, 1);
                     }
                     break;
 
@@ -260,9 +309,9 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
             String[] splitMsg = message.split("\\$", 6);
             String sender = message.split("\\$", 6)[1];
             String signature = message.split("\\$", 6)[4];
-            System.out.println("Signature: " + signature);
+            //System.out.println("Signature: " + signature);
             StringBuilder checkSig = new StringBuilder(splitMsg[0] + "|" + splitMsg[1] + "|" + splitMsg[2] + "|" + splitMsg[3]);
-            System.out.println("CheckSig: " + checkSig);
+            //System.out.println("CheckSig: " + checkSig);
     
             Signature signMaker = Signature.getInstance(signAlgo);
             PublicKey pubKey = readPublicKey("src/main/java/com/ist/DepChain/keys/" + sender + "_pub.key");

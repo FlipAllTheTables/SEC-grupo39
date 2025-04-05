@@ -75,7 +75,7 @@ public class BizantineConsensus {
         int senderId = Integer.parseInt(message.split("\\|", 6)[1]);
         String state;
 
-        if (nodestate.isBizantine){
+        if (nodestate.isBizantine == 1 || nodestate.isBizantine == 2) {
             state = bizantineState(consensusIndex);
         }
         else{
@@ -227,8 +227,11 @@ public class BizantineConsensus {
             if (i == nodestate.myId){
                 continue;
             }
-            if (nodestate.isBizantine) {
+            if (nodestate.isBizantine == 1 || nodestate.isBizantine == 2) {
                 content = bizantineWrite(consensusIndex);
+            }
+            else if (nodestate.isBizantine == 5){
+                return;
             }
             else {
                 content = "WRITE|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + consensusIndex + "|" + timestamp + "," + value;
@@ -270,7 +273,7 @@ public class BizantineConsensus {
             if (i == nodestate.myId){
                 continue;
             }
-            if (nodestate.isBizantine) {
+            if (nodestate.isBizantine == 1 || nodestate.isBizantine == 2) {
                 content = bizantineAccept(consensusIndex);
             }
             else {
@@ -287,7 +290,7 @@ public class BizantineConsensus {
         }
     }
 
-    public void countAccepts(String accept) {
+    public synchronized void countAccepts(String accept) {
         String[] acceptArray = accept.split("\\|", 6);
         String value = acceptArray[4];
         int consensusIndex = Integer.parseInt(acceptArray[3]);
@@ -304,7 +307,7 @@ public class BizantineConsensus {
             consenusReached.set(consensusIndex, true);
             nodestate.val.set(consensusIndex, value);
             nodestate.valuesToAppend.remove(value);
-            System.out.println("Decided on value: " + value);
+            //System.out.println("Decided on value: " + value);
             addToBlockChain(value);
 
             // Cancel the timer if consensus is reached
@@ -315,6 +318,7 @@ public class BizantineConsensus {
         } else {
             // Start a timer if not already started
             if (!abortTimers.containsKey(consensusIndex)) {
+                System.out.println("Starting timer for consensusIndex: " + consensusIndex);
                 ScheduledFuture<?> abortTask = scheduler.schedule(() -> {
                     if (!consenusReached.get(consensusIndex)) {
                         sendAbort(consensusIndex);
@@ -328,6 +332,7 @@ public class BizantineConsensus {
 
     private void sendAbort(int consensusIndex) {
         String abortMessage = "ABORT|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + consensusIndex;
+        System.out.println("Sending abort message for consensusIndex: " + consensusIndex);
         for (int i = 0; i < nodestate.numNodes; i++) {
             if (i == nodestate.myId) {
                 continue;
@@ -351,7 +356,7 @@ public class BizantineConsensus {
         countedAborts.set(consensusIndex, countedAborts.get(consensusIndex) + 1);
         if (countedAborts.get(consensusIndex) == nodestate.quorumSize && !consenusReached.get(consensusIndex)) {
             consenusReached.set(consensusIndex, true);
-            System.out.println("Consensus aborted for index: " + consensusIndex);
+            //System.out.println("Consensus aborted for index: " + consensusIndex);
             nodestate.val.set(consensusIndex, "ABORTED");
             nodestate.valuesToAppend.remove("ABORTED");
             addToBlockChain("ABORTED");
@@ -372,7 +377,7 @@ public class BizantineConsensus {
             //Remove the nounce
             transaction = transaction.split("%")[0];
             String decodedText = new String(Base64.getDecoder().decode(transaction));
-            System.out.println("Transaction " + decodedText);
+            //System.out.println("Transaction " + decodedText);
             JsonObject jsonObject = JsonParser.parseString(decodedText).getAsJsonObject();
             jsonArray.add(jsonObject);           
         }
@@ -429,6 +434,7 @@ public class BizantineConsensus {
 
         String state = "STATE|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + consensusIndex + "|<" + 
         random.nextInt(100) + "," + randomString.toString() + "," + pair  + ">";
+        System.out.println("Bizantine state: " + state);
 
         return state;
     }
@@ -446,6 +452,7 @@ public class BizantineConsensus {
         }
 
         String content = "WRITE|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + consensusIndex + "|" + timestamp + "," + randomString.toString();
+        System.out.println("Bizantine write: " + content);
         return content;
     }
 
@@ -461,6 +468,7 @@ public class BizantineConsensus {
         }
 
         String content = "ACCEPT|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + consensusIndex + "|" + randomString.toString();
+        System.out.println("Bizantine accept: " + content);
         return content;
     }
 }

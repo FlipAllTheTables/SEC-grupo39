@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
 import java.util.HashMap;
@@ -25,15 +24,16 @@ public class NodeState {
     public int consensusIndex;
     public PrivateKey privateKey;
     public List<Block> blockChain;
-    public boolean isBizantine;
+    public int isBizantine;
     public List<String> valuesToAppend;
     public boolean isClient;
     public List<String> currentBlockTransactions;
     public HashMap<Integer, SecretKeySpec> sharedKeys;
+    public HashMap<String, Integer> hashToClientMap;
 
     //TODO Adicionar HashMap<Integer, SecretKey> sharedKeys       HashMap que associa cada comunicação com uma chave partilhada
 
-    public NodeState(int myId, int numNodes, boolean isBizantine) {
+    public NodeState(int myId, int numNodes, int isBizantine) {
         acks = new HashMap<>();
         seqNum = 0;
         this.myId = myId;
@@ -54,6 +54,7 @@ public class NodeState {
         this.isClient = false;
         this.currentBlockTransactions = new ArrayList<>();
         this.sharedKeys = new HashMap<>();
+        this.hashToClientMap = new HashMap<>();
     }
 
     public void addConsensusPair(int value1, String value2) {
