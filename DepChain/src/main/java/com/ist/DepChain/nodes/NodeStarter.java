@@ -2,15 +2,7 @@ package com.ist.DepChain.nodes;
 import java.net.DatagramSocket;
 import java.security.PrivateKey;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.HashMap;
-import java.io.IOException;
-
-import java.security.NoSuchAlgorithmException;
-
-import javax.crypto.KeyGenerator;
-import javax.crypto.SecretKey;
-import javax.crypto.spec.SecretKeySpec;
 
 import com.ist.DepChain.client.Client;
 import com.ist.DepChain.links.AuthenticatedPerfectLink;
@@ -24,8 +16,6 @@ public class NodeStarter {
     private static final int BASE_PORT = 5000;
     private static int id;
     public static NodeState nodestate;
-    private static final String ALGORITHM = "AES";
-    private static final int KEY_SIZE = 256;
     private static HashMap<String, String> methodIds;
     
     public static void main( String[] args ) throws Exception {
@@ -69,7 +59,7 @@ public class NodeStarter {
             int index = i;
             new Thread(() -> {
                 try{
-                    String encodedKey = generateSymKey(index);
+                    String encodedKey = KeysUtil.generateSymKey(index, nodestate);
                     nodestate.acks.put(index, new ArrayList<>()); // Create an association between node and awaited acknowledgements
                     String message = "ESTABLISH|" + id + "|" + nodestate.seqNum + "|" + encodedKey;
                     apLink.send(message, BASE_PORT + index);
@@ -89,19 +79,5 @@ public class NodeStarter {
 
     }
 
-    public static String generateSymKey(int node) throws NoSuchAlgorithmException, IOException {
-        // Generate key
-        KeyGenerator keyGenerator = KeyGenerator.getInstance(ALGORITHM);
-        keyGenerator.init(KEY_SIZE);
-        SecretKey secretKey = keyGenerator.generateKey();
-
-        // Encode key as Base64 (optional, for readability)
-        String encodedKey = Base64.getEncoder().encodeToString(secretKey.getEncoded());
-
-        nodestate.sharedKeys.put(node, new SecretKeySpec(encodedKey.getBytes(), "AES"));
-
-        //System.out.println("Key saved to " + KEY_FILE);
-        return encodedKey;
-    }
 }
 

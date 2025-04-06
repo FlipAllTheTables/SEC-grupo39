@@ -14,10 +14,19 @@ import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
+import java.util.Base64;
+
+import javax.crypto.KeyGenerator;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
+
+import com.ist.DepChain.nodes.NodeState;
 
 public class KeysUtil {
 
-    private static final String KEY_FILE = "src/main/java/com/ist/DepChain/keys/";
+    private static final String KEY_PATH = "src/main/java/com/ist/DepChain/keys/";
+    private static final String ALGORITHM = "AES";
+    private static final int KEY_SIZE = 256;
 
     private KeysUtil() {}
 
@@ -30,14 +39,14 @@ public class KeysUtil {
         PrivateKey privKey = keys.getPrivate();
         byte[] privKeyEncoded = privKey.getEncoded();
 
-        try (FileOutputStream privFos = new FileOutputStream(KEY_FILE + name + "_priv.key")) {
+        try (FileOutputStream privFos = new FileOutputStream(KEY_PATH + name + "_priv.key")) {
             privFos.write(privKeyEncoded);
         }
 
         PublicKey pubKey = keys.getPublic();
         byte[] pubKeyEncoded = pubKey.getEncoded();
 
-        try (FileOutputStream pubFos = new FileOutputStream(KEY_FILE + name + "_pub.key")) {
+        try (FileOutputStream pubFos = new FileOutputStream(KEY_PATH + name + "_pub.key")) {
             pubFos.write(pubKeyEncoded);
         }        
     }
@@ -58,4 +67,18 @@ public class KeysUtil {
         return keyFactory.generatePrivate(keySpec);
     }
     
+    public static String generateSymKey(int node, NodeState nodestate) throws NoSuchAlgorithmException, IOException {
+        // Generate key
+        KeyGenerator keyGenerator = KeyGenerator.getInstance(ALGORITHM);
+        keyGenerator.init(KEY_SIZE);
+        SecretKey secretKey = keyGenerator.generateKey();
+
+        // Encode key as Base64 (optional, for readability)
+        String encodedKey = Base64.getEncoder().encodeToString(secretKey.getEncoded());
+
+        nodestate.sharedKeys.put(node, new SecretKeySpec(encodedKey.getBytes(), "AES"));
+
+        //System.out.println("Key saved to " + KEY_FILE);
+        return encodedKey;
+    }
 }

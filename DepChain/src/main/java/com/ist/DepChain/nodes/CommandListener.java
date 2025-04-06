@@ -1,6 +1,5 @@
 package com.ist.DepChain.nodes;
 
-import java.security.spec.ECFieldF2m;
 import java.util.Scanner;
 
 import com.ist.DepChain.links.AuthenticatedPerfectLink;
