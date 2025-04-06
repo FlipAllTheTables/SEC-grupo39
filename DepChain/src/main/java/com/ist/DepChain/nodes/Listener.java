@@ -26,14 +26,14 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
         private AuthenticatedPerfectLink apLink;
         public NodeState nodestate;
         private static final int BASE_PORT = 5000;
-        private BizantineConsensus bizantineConsensus;
+        private ByzantineConsensus byzantineConsensus;
         private final String signAlgo = "SHA256withRSA";
         private HashMap<String, Integer> feedbackMap;
 
-        public Listener(AuthenticatedPerfectLink apLink, NodeState nodeState, BizantineConsensus bizantineConsensus) {
+        public Listener(AuthenticatedPerfectLink apLink, NodeState nodeState, ByzantineConsensus byzantineConsensus) {
             this.apLink = apLink;
             this.nodestate = nodeState;
-            this.bizantineConsensus = bizantineConsensus;
+            this.byzantineConsensus = byzantineConsensus;
             this.feedbackMap = new HashMap<>();
         }
 
@@ -128,7 +128,7 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
                                 //System.out.println("State: " + state);
                                 nodestate.val.add(consensusIndex, state);
                                 nodestate.valts.add(consensusIndex, 0);
-                                bizantineConsensus.read(consensusIndex);
+                                byzantineConsensus.read(consensusIndex);
                             }
                         }
                     }
@@ -151,7 +151,7 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
-                    bizantineConsensus.state(message);
+                    byzantineConsensus.state(message);
                     break;
 
                 case "STATE":
@@ -163,7 +163,7 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
-                    bizantineConsensus.analyseState(message, consensusRun);
+                    byzantineConsensus.analyseState(message, consensusRun);
                     break;
 
                 case "COLLECTED":
@@ -175,7 +175,7 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
                         e.printStackTrace();
                     }
                     int consensusIndex = Integer.valueOf(message.split("\\|",6)[3]);
-                    bizantineConsensus.readCollected(message, consensusIndex); 
+                    byzantineConsensus.readCollected(message, consensusIndex); 
                     break;
 
                 case "WRITE":
@@ -186,7 +186,7 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
-                    bizantineConsensus.countWrites(message);
+                    byzantineConsensus.countWrites(message);
                     break;
 
                 case "ACCEPT":
@@ -197,7 +197,7 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
-                    bizantineConsensus.countAccepts(message);
+                    byzantineConsensus.countAccepts(message);
                     break;
 
                 case "ABORT":
@@ -208,7 +208,7 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
-                    bizantineConsensus.countAborts(message);
+                    byzantineConsensus.countAborts(message);
                     break;
                 
                 case "READALL":
@@ -267,7 +267,7 @@ import com.ist.DepChain.links.AuthenticatedPerfectLink;
 
                     if (feedbackMap.containsKey(feedback)){
                         feedbackMap.put(feedback, feedbackMap.get(feedback) + 1);
-                        if(feedbackMap.get(feedback) == nodestate.numNodes - nodestate.bizantineProcesses){
+                        if(feedbackMap.get(feedback) == nodestate.numNodes - nodestate.byzantineProcesses){
                             String encodedTx = feedback.split("&", 3)[0];
                             String result = feedback.split("&", 3)[1];
                             String error = feedback.split("&", 3)[2];

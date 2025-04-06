@@ -72,7 +72,7 @@ public class ClientCommandListener implements Runnable {
 
         switch (cmd.toUpperCase()) {
             case "APPEND":
-                for (i = 1; i < nodestate.numNodes-nodestate.bizantineProcesses; i++) {
+                for (i = 1; i < nodestate.numNodes-nodestate.byzantineProcesses; i++) {
                     String innit = "INNIT|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + arg;
                     int sendPort = BASE_PORT + i;
                     new Thread(() -> {
@@ -320,7 +320,7 @@ public class ClientCommandListener implements Runnable {
         String sign = authenticate(jsonObject.toString(), sender);
         jsonObject.addProperty("signature", sign);
 
-        if(nodestate.isBizantine == 4){
+        if(nodestate.isByzantine == 4){
             Random random = new Random();
             int length = 10; // Length of the random string
             String characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";

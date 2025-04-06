@@ -20,7 +20,7 @@ public class NodeStarter {
     
     public static void main( String[] args ) throws Exception {
         if (args.length != 4) {
-            System.err.println("Usage: NodeStarter <node_id> <num_nodes> <is_byzantine> <is_client>");
+            System.err.println("Usage: NodeStarter <node_id> <num_nodes> <test_mode> <is_client>");
             return;
         }
 
@@ -48,9 +48,9 @@ public class NodeStarter {
             new Client(apLink, nodestate, methodIds);
         }
 
-        BizantineConsensus bizantineConsensus = new BizantineConsensus(nodestate, apLink, manageContracts);
+        ByzantineConsensus byzantineConsensus = new ByzantineConsensus(nodestate, apLink, manageContracts);
 
-        Listener listener = new Listener(apLink, nodestate, bizantineConsensus);
+        Listener listener = new Listener(apLink, nodestate, byzantineConsensus);
         Thread thread = new Thread(listener);
         thread.start();
 

@@ -45,10 +45,10 @@ public class AuthenticatedPerfectLink {
             signature = authenticateSym(m, port - BASE_PORT);
             //System.out.println("Signature l49 APL: " + signature);
         }
-        if(nodeState.isBizantine == 2){
+        if(nodeState.isByzantine == 2){
             Thread.sleep(5000);
         }
-        if(nodeState.isBizantine == 3 && !command.equals("ESTABLISH")){
+        if(nodeState.isByzantine == 3 && !command.equals("ESTABLISH")){
             return;
         }
         stubbornLink.send(m + "|" + signature, port); // add signature to message m

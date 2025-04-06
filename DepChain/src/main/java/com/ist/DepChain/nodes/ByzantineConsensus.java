@@ -21,7 +21,7 @@ import com.ist.DepChain.blocks.Block;
 import com.ist.DepChain.links.AuthenticatedPerfectLink;
 import com.ist.DepChain.util.Pair;
 
-public class BizantineConsensus {
+public class ByzantineConsensus {
     private NodeState nodestate;
     private AuthenticatedPerfectLink apLink;
     private static final int BASE_PORT = 5000;
@@ -36,7 +36,7 @@ public class BizantineConsensus {
     private ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
     ManageContracts manageContracts;
 
-    public BizantineConsensus(NodeState nodeState, AuthenticatedPerfectLink apLink, ManageContracts manageContracts) {
+    public ByzantineConsensus(NodeState nodeState, AuthenticatedPerfectLink apLink, ManageContracts manageContracts) {
         this.nodestate = nodeState;
         this.apLink = apLink;
         storedMessages = new ArrayList<>();
@@ -75,8 +75,8 @@ public class BizantineConsensus {
         int senderId = Integer.parseInt(message.split("\\|", 6)[1]);
         String state;
 
-        if (nodestate.isBizantine == 1 || nodestate.isBizantine == 2) {
-            state = bizantineState(consensusIndex);
+        if (nodestate.isByzantine == 1 || nodestate.isByzantine == 2) {
+            state = byzantineState(consensusIndex);
         }
         else{
             state = "STATE|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + consensusIndex + "|<" + 
@@ -205,7 +205,7 @@ public class BizantineConsensus {
 
             if (stateArray[2].contains(highestTimestamp + "," + highestValue)) {
                 quorumCount++; 
-                if (quorumCount == nodestate.bizantineProcesses + 1) {
+                if (quorumCount == nodestate.byzantineProcesses + 1) {
                     decided = true;
                     writeValue(highestTimestamp, highestValue, consensusIndex);
                     break;
@@ -227,10 +227,10 @@ public class BizantineConsensus {
             if (i == nodestate.myId){
                 continue;
             }
-            if (nodestate.isBizantine == 1 || nodestate.isBizantine == 2) {
-                content = bizantineWrite(consensusIndex);
+            if (nodestate.isByzantine == 1 || nodestate.isByzantine == 2) {
+                content = byzantineWrite(consensusIndex);
             }
-            else if (nodestate.isBizantine == 5){
+            else if (nodestate.isByzantine == 5){
                 return;
             }
             else {
@@ -273,8 +273,8 @@ public class BizantineConsensus {
             if (i == nodestate.myId){
                 continue;
             }
-            if (nodestate.isBizantine == 1 || nodestate.isBizantine == 2) {
-                content = bizantineAccept(consensusIndex);
+            if (nodestate.isByzantine == 1 || nodestate.isByzantine == 2) {
+                content = byzantineAccept(consensusIndex);
             }
             else {
                 content = "ACCEPT|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + consensusIndex + "|" + value;
@@ -414,7 +414,7 @@ public class BizantineConsensus {
         return keyFactory.generatePublic(new X509EncodedKeySpec(keyBytes));
     }
 
-    private String bizantineState (String consensusIndex) {
+    private String byzantineState (String consensusIndex) {
         Random random = new Random();
         int length = 10; // Length of the random string
         String characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -434,12 +434,12 @@ public class BizantineConsensus {
 
         String state = "STATE|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + consensusIndex + "|<" + 
         random.nextInt(100) + "," + randomString.toString() + "," + pair  + ">";
-        System.out.println("Bizantine state: " + state);
+        System.out.println("Byzantine state: " + state);
 
         return state;
     }
 
-    private String bizantineWrite (Integer consensusIndex) {
+    private String byzantineWrite (Integer consensusIndex) {
         Random random = new Random();
         int timestamp = random.nextInt(100);
         int length = 10; // Length of the random string
@@ -452,11 +452,11 @@ public class BizantineConsensus {
         }
 
         String content = "WRITE|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + consensusIndex + "|" + timestamp + "," + randomString.toString();
-        System.out.println("Bizantine write: " + content);
+        System.out.println("Byzantine write: " + content);
         return content;
     }
 
-    private String bizantineAccept (Integer consensusIndex) {
+    private String byzantineAccept (Integer consensusIndex) {
         Random random = new Random();
         int length = 10; // Length of the random string
         String characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -468,7 +468,7 @@ public class BizantineConsensus {
         }
 
         String content = "ACCEPT|" + nodestate.myId + "|" + nodestate.seqNum++ + "|" + consensusIndex + "|" + randomString.toString();
-        System.out.println("Bizantine accept: " + content);
+        System.out.println("Byzantine accept: " + content);
         return content;
     }
 }

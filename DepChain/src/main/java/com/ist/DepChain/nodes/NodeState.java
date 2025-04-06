@@ -20,18 +20,18 @@ public class NodeState {
     public List<String> val;
     public List<Pair> consensusPairs;
     public int quorumSize;
-    public int bizantineProcesses; 
+    public int byzantineProcesses; 
     public int consensusIndex;
     public PrivateKey privateKey;
     public List<Block> blockChain;
-    public int isBizantine;
+    public int isByzantine;
     public List<String> valuesToAppend;
     public boolean isClient;
     public List<String> currentBlockTransactions;
     public HashMap<Integer, SecretKeySpec> sharedKeys;
     public HashMap<String, Integer> hashToClientMap;
 
-    public NodeState(int myId, int numNodes, int isBizantine) {
+    public NodeState(int myId, int numNodes, int isByzantine) {
         acks = new HashMap<>();
         seqNum = 0;
         this.myId = myId;
@@ -44,10 +44,10 @@ public class NodeState {
             val.add("");
         }
         consensusPairs = new ArrayList<>();
-        bizantineProcesses = numNodes / 3;
-        quorumSize = numNodes - bizantineProcesses - 1;
+        byzantineProcesses = numNodes / 3;
+        quorumSize = numNodes - byzantineProcesses - 1;
         this.consensusIndex = 0;
-        this.isBizantine = isBizantine;
+        this.isByzantine = isByzantine;
         this.valuesToAppend = new ArrayList<>();
         this.isClient = false;
         this.currentBlockTransactions = new ArrayList<>();
