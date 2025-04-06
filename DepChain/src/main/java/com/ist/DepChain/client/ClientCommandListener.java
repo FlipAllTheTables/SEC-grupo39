@@ -285,6 +285,8 @@ public class ClientCommandListener implements Runnable {
                 System.out.println("Unknown command: " + cmd);
                 break;
         }
+
+        scanner.close();
     }
     
     private String authenticate(String m, String account) throws Exception {
