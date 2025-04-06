@@ -9,7 +9,7 @@ contract Blacklist is Ownable{
 
     constructor(address owner) Ownable(owner) {}
 
-    function addToBlackList(address addr) public returns (bool) {
+    function addToBlackList(address addr) public onlyOwner returns (bool) {
         if (blacklistedAddresses[addr]) {
             return false; // Address is already blacklisted
         }
@@ -17,7 +17,7 @@ contract Blacklist is Ownable{
         return true;
     }
 
-    function removeFromBlacklist(address addr) public returns (bool) {
+    function removeFromBlacklist(address addr) public onlyOwner returns (bool) {
         if (!blacklistedAddresses[addr]) {
             return false; // Address is not in blacklist
         }

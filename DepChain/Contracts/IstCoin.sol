@@ -13,7 +13,7 @@ contract ISTCoin is ERC20, ERC20Permit, Blacklist {
         ERC20Permit("IST Coin")
         Blacklist(owner) 
     {
-        _mint(owner, 100000000 * 10 ** decimals());
+        _mint(owner, 1000000 * 10 ** decimals());
     }
 
     function decimals() public pure override returns (uint8) {
