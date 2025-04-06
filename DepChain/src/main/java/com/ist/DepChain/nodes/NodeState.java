@@ -31,8 +31,6 @@ public class NodeState {
     public HashMap<Integer, SecretKeySpec> sharedKeys;
     public HashMap<String, Integer> hashToClientMap;
 
-    //TODO Adicionar HashMap<Integer, SecretKey> sharedKeys       HashMap que associa cada comunicação com uma chave partilhada
-
     public NodeState(int myId, int numNodes, int isBizantine) {
         acks = new HashMap<>();
         seqNum = 0;
