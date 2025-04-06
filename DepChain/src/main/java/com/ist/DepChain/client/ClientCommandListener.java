@@ -1,16 +1,8 @@
 package com.ist.DepChain.client;
 
-import java.io.FileInputStream;
-import java.io.IOException;
 import java.math.BigInteger;
-import java.security.Key;
-import java.security.KeyFactory;
-import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.Signature;
-import java.security.spec.InvalidKeySpecException;
-import java.security.spec.PKCS8EncodedKeySpec;
-import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
@@ -20,6 +12,7 @@ import java.util.Scanner;
 
 import com.ist.DepChain.links.AuthenticatedPerfectLink;
 import com.ist.DepChain.nodes.NodeState;
+import com.ist.DepChain.util.KeysUtil;
 import com.google.gson.JsonObject;
 
 public class ClientCommandListener implements Runnable {
@@ -303,10 +296,10 @@ public class ClientCommandListener implements Runnable {
         //System.out.println("Account: " + account);
         PrivateKey privKey = null;
         if (accountId == 1){
-            privKey = (PrivateKey) readRSA("src/main/java/com/ist/DepChain/keys/Owner_priv.key", "priv");
+            privKey = (PrivateKey) KeysUtil.readRSA("src/main/java/com/ist/DepChain/keys/Owner_priv.key", "priv");
         }
         else{
-            privKey = (PrivateKey) readRSA("src/main/java/com/ist/DepChain/keys/Client_" + (accountId-1) + "_priv.key", "priv");
+            privKey = (PrivateKey) KeysUtil.readRSA("src/main/java/com/ist/DepChain/keys/Client_" + (accountId-1) + "_priv.key", "priv");
         }
         Signature signMaker = Signature.getInstance(signAlgo);
         signMaker.initSign(privKey);
@@ -339,22 +332,6 @@ public class ClientCommandListener implements Runnable {
         }
 
         return java.util.Base64.getEncoder().encodeToString(jsonObject.toString().getBytes());
-    }
-
-    public static Key readRSA(String keyPath, String type) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
-        byte[] encoded;
-        try (FileInputStream fis = new FileInputStream(keyPath)) {
-            encoded = new byte[fis.available()];
-            fis.read(encoded);
-        }
-        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-        if (type.equals("pub") ){
-            X509EncodedKeySpec keySpec = new X509EncodedKeySpec(encoded);
-            return keyFactory.generatePublic(keySpec);
-        }
-
-        PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(encoded);
-        return keyFactory.generatePrivate(keySpec);
     }
 
     public static String convertIntegerToHex256Bit(int number) {

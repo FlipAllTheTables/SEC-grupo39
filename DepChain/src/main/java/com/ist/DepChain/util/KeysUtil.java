@@ -11,6 +11,8 @@ import java.security.spec.X509EncodedKeySpec;
 
 public class KeysUtil {
 
+    private static final String KEY_FILE = "src/main/java/com/ist/DepChain/keys/";
+
     private KeysUtil() {}
 
     public static Key readRSA(String keyPath, String type) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {

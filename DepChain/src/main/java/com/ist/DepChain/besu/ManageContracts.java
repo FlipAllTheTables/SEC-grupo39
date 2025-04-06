@@ -3,6 +3,7 @@ package com.ist.DepChain.besu;
 import com.ist.DepChain.blocks.Block;
 import com.ist.DepChain.links.AuthenticatedPerfectLink;
 import com.ist.DepChain.nodes.NodeState;
+import com.ist.DepChain.util.KeysUtil;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -18,18 +19,13 @@ import org.hyperledger.besu.evm.fluent.SimpleWorld;
 import org.hyperledger.besu.evm.tracing.StandardJsonTracer;
 
 import java.io.ByteArrayOutputStream;
-import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.math.BigInteger;
-import java.security.Key;
 import java.security.KeyFactory;
-import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.security.Signature;
-import java.security.spec.InvalidKeySpecException;
-import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
 import java.util.HashMap;
@@ -274,11 +270,11 @@ public class ManageContracts {
         System.out.println("Account ID: " + accountId);
         if (accountId == 1){
             //System.out.println("Reading key in file: " + "src/main/java/com/ist/DepChain/keys/Owner_pub.key");
-            pubKey = (PublicKey) readRSA("src/main/java/com/ist/DepChain/keys/Owner_pub.key", "pub");
+            pubKey = (PublicKey) KeysUtil.readRSA("src/main/java/com/ist/DepChain/keys/Owner_pub.key", "pub");
         }
         else{
             //System.out.println("Reading key in file: " + "src/main/java/com/ist/DepChain/keys/Client_" + (accountId+1) + "_pub.key");
-            pubKey = (PublicKey) readRSA("src/main/java/com/ist/DepChain/keys/Client_" + (accountId-1) + "_pub.key", "pub");
+            pubKey = (PublicKey) KeysUtil.readRSA("src/main/java/com/ist/DepChain/keys/Client_" + (accountId-1) + "_pub.key", "pub");
         }
         byte[] decodedSign = Base64.getDecoder().decode(sign);
         //System.out.println("Decoded Sign: " + decodedSign);
@@ -286,22 +282,6 @@ public class ManageContracts {
         signMaker.initVerify(pubKey);
         signMaker.update(unsignedMessage.toString().getBytes());
         return signMaker.verify(decodedSign);
-    }
-
-    public static Key readRSA(String keyPath, String type) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
-        byte[] encoded;
-        try (FileInputStream fis = new FileInputStream(keyPath)) {
-            encoded = new byte[fis.available()];
-            fis.read(encoded);
-        }
-        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-        if (type.equals("pub") ){
-            X509EncodedKeySpec keySpec = new X509EncodedKeySpec(encoded);
-            return keyFactory.generatePublic(keySpec);
-        }
-
-        PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(encoded);
-        return keyFactory.generatePrivate(keySpec);
     }
 
     public boolean depCoinExchange(Account sender, Account receiver, int amount){

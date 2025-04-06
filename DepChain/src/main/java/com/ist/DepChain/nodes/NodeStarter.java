@@ -11,13 +11,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.security.PublicKey;
 
-import java.io.FileInputStream;
-import java.security.Key;
-import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
-import java.security.spec.InvalidKeySpecException;
-import java.security.spec.PKCS8EncodedKeySpec;
-import java.security.spec.X509EncodedKeySpec;
 
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
@@ -25,6 +19,7 @@ import javax.crypto.spec.SecretKeySpec;
 
 import com.ist.DepChain.client.Client;
 import com.ist.DepChain.links.AuthenticatedPerfectLink;
+import com.ist.DepChain.util.KeysUtil;
 
 import com.ist.DepChain.besu.ManageContracts;
 
@@ -53,7 +48,7 @@ public class NodeStarter {
         generateRSAKeys();
         nodestate = new NodeState(id, num_nodes, isByzantine);
 
-        PrivateKey privKey = (PrivateKey) readRSA("src/main/java/com/ist/DepChain/keys/" + id + "_priv.key", "priv");
+        PrivateKey privKey = (PrivateKey) KeysUtil.readRSA("src/main/java/com/ist/DepChain/keys/" + id + "_priv.key", "priv");
         nodestate.privateKey = privKey;
 
         // AuthenticatedPerfectLink used to communicate with other nodes
@@ -134,22 +129,6 @@ public class NodeStarter {
         try (FileOutputStream pubFos = new FileOutputStream("src/main/java/com/ist/DepChain/keys/" + id + "_pub.key")) {
             pubFos.write(pubKeyEncoded);
         }        
-    }
-
-    public static Key readRSA(String keyPath, String type) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
-        byte[] encoded;
-        try (FileInputStream fis = new FileInputStream(keyPath)) {
-            encoded = new byte[fis.available()];
-            fis.read(encoded);
-        }
-        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-        if (type.equals("pub") ){
-            X509EncodedKeySpec keySpec = new X509EncodedKeySpec(encoded);
-            return keyFactory.generatePublic(keySpec);
-        }
-
-        PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(encoded);
-        return keyFactory.generatePrivate(keySpec);
     }
 }
 
