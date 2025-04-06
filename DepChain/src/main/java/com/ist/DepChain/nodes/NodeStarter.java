@@ -1,15 +1,10 @@
 package com.ist.DepChain.nodes;
 import java.net.DatagramSocket;
-import java.security.GeneralSecurityException;
-import java.security.KeyPair;
-import java.security.KeyPairGenerator;
 import java.security.PrivateKey;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.security.PublicKey;
 
 import java.security.NoSuchAlgorithmException;
 
@@ -31,7 +26,6 @@ public class NodeStarter {
     public static NodeState nodestate;
     private static final String ALGORITHM = "AES";
     private static final int KEY_SIZE = 256;
-    private static final String KEY_FILE = "src/main/java/com/ist/DepChain/keys/";
     private static HashMap<String, String> methodIds;
     
     public static void main( String[] args ) throws Exception {
@@ -45,7 +39,7 @@ public class NodeStarter {
         
         int isByzantine = Integer.parseInt(args[2]);
         
-        generateRSAKeys();
+        KeysUtil.generateRSAKeys(Integer.toString(id));
         nodestate = new NodeState(id, num_nodes, isByzantine);
 
         PrivateKey privKey = (PrivateKey) KeysUtil.readRSA("src/main/java/com/ist/DepChain/keys/" + id + "_priv.key", "priv");
@@ -108,27 +102,6 @@ public class NodeStarter {
 
         //System.out.println("Key saved to " + KEY_FILE);
         return encodedKey;
-    }
-
-    private static void generateRSAKeys() throws GeneralSecurityException, IOException {
-        //System.out.println("Generating RSA keys for node " + id);
-        KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA");
-        keyGen.initialize(4096);
-        KeyPair keys = keyGen.generateKeyPair();
-
-        PrivateKey privKey = keys.getPrivate();
-        byte[] privKeyEncoded = privKey.getEncoded();
-
-        try (FileOutputStream privFos = new FileOutputStream("src/main/java/com/ist/DepChain/keys/" + id + "_priv.key")) {
-            privFos.write(privKeyEncoded);
-        }
-
-        PublicKey pubKey = keys.getPublic();
-        byte[] pubKeyEncoded = pubKey.getEncoded();
-
-        try (FileOutputStream pubFos = new FileOutputStream("src/main/java/com/ist/DepChain/keys/" + id + "_pub.key")) {
-            pubFos.write(pubKeyEncoded);
-        }        
     }
 }
 
